@@ -1,0 +1,19 @@
+cmake_minimum_required(VERSION 3.13)
+
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Release>:Release>")
+set(CMAKE_VS_WINDOWS_TARGET_PLATFORM_MIN_VERSION "10.0.18362.0")
+
+project(Mimic_Engine)
+set(CMAKE_CXX_STANDARD 17)
+
+file(GLOB_RECURSE MY_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
+
+add_executable(Mimic_Engine WIN32 "${MY_SOURCES}")
+
+target_compile_definitions("${CMAKE_PROJECT_NAME}" PUBLIC RESOURCES_PATH="${CMAKE_CURRENT_SOURCE_DIR}/resources/") # This is useful to get an ASSETS_PATH in your IDE during development but you should comment this if you compile a release version and uncomment the next line
+#target_compile_definitions("${CMAKE_PROJECT_NAME}" PUBLIC RESOURCES_PATH="./resources/") # Uncomment this line to setup the ASSETS_PATH macro to the final assets directory when you share the project
+
+
+target_include_directories(Mimic_Engine BEFORE PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include/" "${CMAKE_CURRENT_SOURCE_DIR}/include/directx/")
+target_link_libraries(Mimic_Engine PRIVATE d3d12 dxgi d3dcompiler dxguid)
