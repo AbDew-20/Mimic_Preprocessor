@@ -20,14 +20,16 @@
 #undef CreateWindow	
 #endif
 
-#include <wrl.h>
-using namespace Microsoft::WRL;
+#ifndef DWORD_MAX
+#define DWORD_MAX ((DWORD)0xFFFFFFFF)
+#endif
+
 #include <d3d12.h>
 #include <dxgi1_6.h>
-#include <d3dcompiler.h>
+//#include <d3dcompiler.h>
 #include <DirectXMath.h>
 
-#include <d3dx12.h>
+#include <directx/d3dx12.h>
 
 #include <cassert>
 #include <chrono>
@@ -35,4 +37,4 @@ using namespace Microsoft::WRL;
 #include <iostream>
 #include <map>
 
-#include <Helper.h>
+#include <Core/Helper.h>

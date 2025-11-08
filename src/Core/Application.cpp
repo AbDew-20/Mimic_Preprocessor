@@ -1,6 +1,6 @@
-#include <Application.h>
-#include <PCH.h>
-#include <Game.h>
+#include <Core/Application.h>
+#include <Core/PCH.h>
+#include <Core/Game.h>
 constexpr wchar_t kWindowClassName[] = L"Mimic_Engine";
 static LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
 void Application::EnableDebugLayers(){
@@ -275,8 +275,8 @@ int Application::Run(Game *pGame){
 
 		if(running){
 			for(auto iter = windowMap_.begin(); iter!=windowMap_.end(); ++iter){
-				iter->second->OnUpdate(0.0f, 0.0f);
-				iter->second->OnRender(0.0f, 0.0f);
+				iter->second->OnUpdate();
+				iter->second->OnRender();
 			}
 				
 		}

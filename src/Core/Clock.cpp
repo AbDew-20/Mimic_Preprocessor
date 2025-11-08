@@ -1,5 +1,5 @@
-#include <Clock.h>
-#include <PCH.h>
+#include <Core/Clock.h>
+#include <Core/PCH.h>
 
 
 Clock::Clock() :

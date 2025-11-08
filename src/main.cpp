@@ -1,7 +1,6 @@
-#include <Application.h>
-#include <Clock.h>
-#include <BlankScreen.h>
+#include <Core/Application.h>
 #include <dxgidebug.h>
+#include <Apps/BlankScreen.h>
 
 void LiveObjects(){
 	IDXGIDebug1 *dxgiDebug;
@@ -16,7 +15,9 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR pCmdLine, int cmdShow)
 	int ret = 0;
 	app.Init();
 	{
-		BlankScreen screen(&app, windowName, 1280, 720, true);
+		std::string filePath = RESOURCES_PATH;
+		filePath.append("Teapot/teapot.obj");
+		BlankScreen screen(&app, windowName, 1200, 720, filePath, true);
 		ret = app.Run(&screen);
 	}
 	app.ShutDown();

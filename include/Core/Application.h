@@ -1,12 +1,12 @@
 #pragma once
-#include <d3dx12.h>
+#include <directx/d3dx12.h>
 #include <dxgi1_6.h>
 #include <wrl.h>
 #include <string>
 #include <map>
-#include <PoolAllocator.h>
-#include <Window.h>
-#include <CommandQueue.h>
+#include <Core/PoolAllocator.h>
+#include <Core/Window.h>
+#include <Core/CommandQueue.h>
 class Game;
 class CommandQueue;
 class Application{

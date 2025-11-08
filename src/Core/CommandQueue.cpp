@@ -1,6 +1,6 @@
-#include <PCH.h>
+#include <Core/PCH.h>
 
-#include <CommandQueue.h>
+#include <Core/CommandQueue.h>
 
 
 CommandQueue::CommandQueue(ID3D12Device2 *pDevice, D3D12_COMMAND_LIST_TYPE type) :

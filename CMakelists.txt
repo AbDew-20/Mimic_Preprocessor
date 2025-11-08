@@ -14,5 +14,6 @@ target_compile_definitions("${CMAKE_PROJECT_NAME}" PUBLIC RESOURCES_PATH="${CMAK
 #target_compile_definitions("${CMAKE_PROJECT_NAME}" PUBLIC RESOURCES_PATH="./resources/") # Uncomment this line to setup the ASSETS_PATH macro to the final assets directory when you share the project
 
 
-target_include_directories(Mimic_Engine BEFORE PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include/" "${CMAKE_CURRENT_SOURCE_DIR}/include/directx/")
-target_link_libraries(Mimic_Engine PRIVATE d3d12 dxgi d3dcompiler dxguid)
+target_include_directories(Mimic_Engine BEFORE PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include/")
+target_link_libraries(Mimic_Engine PRIVATE d3d12 dxgi dxguid dxcompiler.lib)
+add_custom_command(TARGET Mimic_Engine POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/dxc/bin/dxcompiler.dll $<TARGET_FILE_DIR:Mimic_Engine>)

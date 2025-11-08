@@ -1,7 +1,7 @@
-#include <PCH.h>
-#include <Application.h>
-#include <Window.h>
-#include <Game.h>
+#include <Core/PCH.h>
+#include <Core/Application.h>
+#include <Core/Window.h>
+#include <Core/Game.h>
 
 
 Game::Game(Application *pApp, const std::wstring &name, int width, int height, bool vSync) :

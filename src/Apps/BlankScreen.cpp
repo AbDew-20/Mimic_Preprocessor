@@ -1,18 +1,27 @@
-#include <BlankScreen.h>
-#include <Application.h>
-#include <PCH.h>
+#include <Apps/BlankScreen.h>
+#include <Core/Application.h>
+#include <Core/PCH.h>
 
 
 
 
-BlankScreen::BlankScreen(Application *pApp,const std::wstring &name, int width, int height, bool vSync):
+BlankScreen::BlankScreen(Application *pApp,const std::wstring &name, int width, int height, const std::string& filePath, bool vSync):
 	super(pApp,	name, width, height, vSync),
-	pApp_(pApp)
+	pApp_(pApp),
+	filePath_(filePath)
 {
+	vertexBuffer_ = {};
+	texCoordBuffer_ = {};
+	vertNormalBuffer_ = {};
+	interleavedBuffer_ = {};
 }
 
 
-bool BlankScreen::LoadContent(){ return true; }
+bool BlankScreen::LoadContent(){
+	FileLoader obj(filePath_, vertexBuffer_, texCoordBuffer_, vertNormalBuffer_, interleavedBuffer_);
+	obj.ParseObjFile();
+	return true;
+}
 
 void BlankScreen::UnloadContent(){}
 
@@ -25,8 +34,7 @@ void BlankScreen::OnUpdate(double deltaTime, double totalTime){
 	if(elapsedSeconds>1.0){
 		char buffer[500];
 		auto fps = frameCounter/elapsedSeconds;
-		sprintf_s(buffer, 500, "FPS: %f\n", fps);
-		::OutputDebugStringA(buffer);
+		DebugPrint("FPS: %f\n",fps);
 		elapsedSeconds = 0;
 		frameCounter = 0;
 	}

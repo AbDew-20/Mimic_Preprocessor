@@ -4,8 +4,8 @@
 #include <d3d12.h>
 #include <dxgi1_6.h>
 #include <string>
-#include <Helper.h>
-#include <Clock.h>
+#include <Core/Helper.h>
+#include <Core/Clock.h>
 class Application;
 class Window{
 public:
@@ -37,8 +37,8 @@ protected:
 	friend class Application;
 	friend class Game;
 	void RegisterCallbacks(Game *pGame);
-	virtual void OnUpdate(double deltaTime, double totalTime);
-	virtual void OnRender(double deltaTime, double totalTime);
+	virtual void OnUpdate();
+	virtual void OnRender();
 	virtual void OnResize(int clientHeight, int clientWidth);
 	inline uint64_t GetFrameCounter(){ return frameCounter_; }
 	IDXGISwapChain4 *CreateSwapChain();

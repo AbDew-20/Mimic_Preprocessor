@@ -1,7 +1,7 @@
-#include <Window.h>
-#include <Application.h>
-#include <PCH.h>
-#include <Game.h>
+#include <Core/Window.h>
+#include <Core/Application.h>
+#include <Core/PCH.h>
+#include <Core/Game.h>
 Window::Window(Application *app, HWND hwnd, const std::wstring &windowName, int clientWidth, int clientHeight, bool vSync) :
 	hWnd_(hwnd),
 	windowName_(windowName),
@@ -34,12 +34,12 @@ void Window::Init(){
 
 	UpdateRenderTargetViews();
 }
-void Window::OnUpdate(double deltaTime, double totalTime){
+void Window::OnUpdate(){
 	updateClock_.Tick();
 	frameCounter_++;
 	pGame_->OnUpdate(updateClock_.GetDeltaSeconds(), updateClock_.GetTotalSeconds());
 }
-void Window::OnRender(double deltaTime, double totalTime){
+void Window::OnRender(){
 	renderClock_.Tick();
 	pGame_->OnRender(renderClock_.GetDeltaSeconds(), renderClock_.GetTotalSeconds());
 }

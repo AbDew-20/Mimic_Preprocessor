@@ -19,5 +19,13 @@ auto SafeRelease(T *&ptr)->decltype(ptr->Release(),void()){
 	}
 	
 }
+template<typename T>
+inline void DebugPrint(const char* format, T payload){
+	const size_t buffSize = 500;
+	char buffer[buffSize];
+	::sprintf_s(buffer, buffSize,format,payload);
+	::OutputDebugStringA(buffer);
+
+}
 
 
