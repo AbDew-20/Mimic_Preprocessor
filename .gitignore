@@ -3,6 +3,8 @@
 *.user
 *.userosscache
 *.sln.docstates
+*.cso
+*.pdb
 
 out/
 .vs/

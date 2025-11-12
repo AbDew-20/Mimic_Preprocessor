@@ -1,54 +1,197 @@
 #include <Core/FileLoader.h>
 #include <Core/PCH.h>
 #include <fstream>
+#include <charconv>
+#include <meshoptimizer/meshoptimizer.h>
 
 
 
-FileLoader::FileLoader(std::string filePath,
-	std::vector<DirectX::XMFLOAT3> &vertexBuffer,
-	std::vector<DirectX::XMFLOAT2> &texCoordBuffer,
-	std::vector<DirectX::XMFLOAT3> &vertNormalBuffer,
-	std::vector<VertexData> &interleavedBuffer):
-	filePath_(filePath),
-	vertexBuffer_(vertexBuffer),
-	texCoordBuffer_(texCoordBuffer),
-	interleavedBuffer_(interleavedBuffer),
-	vertNormalBuffer_(vertNormalBuffer)
-{
+
+namespace{
+	enum class HeaderCode{
+		vertex,
+		normal,
+		texture,
+		face,
+		group,
+		mtlFile,
+		material,
+		undef
+	};
+
+	HeaderCode HashString(const std::string_view header){
+		if(header=="mtllib") return HeaderCode::mtlFile;
+		if(header=="v") return HeaderCode::vertex;
+		if(header=="vt") return HeaderCode::texture;
+		if(header=="vn") return HeaderCode::normal;
+		if(header=="g") return HeaderCode::group;
+		if(header=="usemtl") return HeaderCode::material;
+		if(header=="f") return HeaderCode::face;
+		return HeaderCode::undef;
+	}
+
+	void GetLines(std::vector<char> &buffer, std::vector<std::string_view> &lines){
+		const char *start = buffer.data();
+		const char *end = start+buffer.size();
+		const char *lineStart = start;
+
+		while(lineStart<end){
+			const char *newLine = static_cast<const char *>(memchr(lineStart, '\n', end-lineStart));
+			if(!newLine) newLine = end;
+
+			size_t lineLength = newLine-lineStart;
+			if(lineLength>0&&lineStart[lineLength-1]=='\r'){
+				--lineLength;  // trim '\r'
+			}
+			lines.emplace_back(lineStart, lineLength);
+			lineStart = newLine+(newLine<end ? 1 : 0);
+		}
+
+
+	}
+
+	bool ParseString(std::string_view string, const char delim, std::vector<std::string_view> &tokenList){
+		size_t runningOffset = 0;
+		while(string.size()>runningOffset){
+			size_t offset = string.find_first_of(delim, runningOffset);
+			if(offset==std::string::npos){
+				offset = string.size();
+			}
+			if(offset!=runningOffset) tokenList.emplace_back(string.substr(runningOffset, offset-runningOffset));
+			runningOffset = offset+1;
+		}
+		return true;
+
+	}
+
+	void GetVertexData(std::vector<std::string_view> &vertTokenList,
+		std::vector<DirectX::XMFLOAT3> &vertPosBuffer,
+		std::vector<DirectX::XMFLOAT2> &texCoordBuffer,
+		std::vector<DirectX::XMFLOAT3> &vertNormalBuffer,
+		Vertex &vertData){
+		vertData.vert = {0.0f,0.0f,0.0f};
+		vertData.texCoord = {0.0f,0.0f};
+		vertData.normal = {0.0f,0.0f,0.0f};
+		std::string_view token;
+		token = vertTokenList.at(0);
+		int vertIdx = 0;
+		std::from_chars(token.data(), token.data()+token.size(), vertIdx);
+		if(vertIdx<0){
+			vertIdx += vertPosBuffer.size();
+		}
+		else{
+			vertIdx--;
+		}
+		vertData.vert = vertPosBuffer.at(vertIdx);
+
+		if(texCoordBuffer.size()>0){
+			token = vertTokenList.at(1);
+			int texCoordIdx = 0;
+			std::from_chars(token.data(), token.data()+token.size(), texCoordIdx);
+			if(texCoordIdx<0){
+				texCoordIdx += texCoordBuffer.size();
+			}
+			else{
+				texCoordIdx--;
+			}
+			vertData.texCoord = texCoordBuffer.at(texCoordIdx);
+		}
+
+
+		size_t vertTokenIdx = 2;
+		if(vertNormalBuffer.size()>0){
+			if(texCoordBuffer.size()==0) vertTokenIdx = 1;
+			token = vertTokenList.at(vertTokenIdx);
+			int normIdx = 0;
+			std::from_chars(token.data(), token.data()+token.size(), normIdx);
+			if(normIdx<0){
+				normIdx += vertNormalBuffer.size();
+			}
+			else{
+				normIdx--;
+			}
+			vertData.normal = vertNormalBuffer.at(normIdx);
+		}
+	}
+
+	void GenerateIndexBuffer(std::vector<Vertex> &interleavedBuffer, std::vector<Vertex> &indexedInterleavedBuffer, std::vector<uint32_t> &indexBuffer){
+		size_t numIndices = interleavedBuffer.size();
+		std::vector<uint32_t> remap(numIndices);
+		size_t numVertices = meshopt_generateVertexRemap(remap.data(), nullptr, numIndices, interleavedBuffer.data(), numIndices, sizeof(Vertex));
+		indexedInterleavedBuffer.resize(numVertices);
+		indexBuffer.resize(numIndices);
+		meshopt_remapVertexBuffer(&indexedInterleavedBuffer[0], interleavedBuffer.data(), numIndices, sizeof(Vertex), remap.data());
+		meshopt_remapIndexBuffer(indexBuffer.data(), nullptr, numIndices, remap.data());
+	}
 }
 
-void FileLoader::ParseObjFile(){
-	std::ifstream readFile(filePath_.c_str());
-	assert(readFile.is_open() &&"Error opening file");
+
+
+void FileLoader::ParseObjFile(std::string filePath,
+		std::vector<Vertex> &indexedVertexBuffer,
+		std::vector<uint32_t> &indexBuffer,
+		std::string& materialFile){
+
+	std::vector<DirectX::XMFLOAT3> vertPosBuffer;
+	std::vector<DirectX::XMFLOAT2> texCoordBuffer;
+	std::vector<DirectX::XMFLOAT3> vertNormalBuffer;
+	std::vector<Vertex> interleavedBuffer;
+
+	vertPosBuffer.reserve(500);
+	texCoordBuffer.reserve(500);
+	vertNormalBuffer.reserve(500);
+	interleavedBuffer.reserve(500);
+
+	std::vector<std::string_view> lines;
+	std::vector<char> buffer;
+	LoadFileToBuffer(filePath, buffer);
+	GetLines(buffer, lines);
+
+	//scratch buffers for various types
 	std::string line;
-	size_t lineNumber = 0;
-	while(std::getline(readFile, line)){
-		if(!(line.size()>1)){
+	std::string_view header;
+	std::string_view token;
+	Vertex vertData = {DirectX::XMFLOAT3(),DirectX::XMFLOAT2(),DirectX::XMFLOAT3()};
+	std::vector<std::string_view> vertTokenList;
+	vertTokenList.reserve(3);
+	std::vector<std::string_view> tokenList;
+	tokenList.reserve(20);
+
+
+	int numLine = 0;
+	for(auto lineSv:lines){
+		numLine++;
+		tokenList.clear();
+		if(!(lineSv.size()>1)){
 			continue;
 		}
-		std::vector<std::tuple<size_t,size_t>> tokenOffsets = {};
-		ParseString(line, ' ', tokenOffsets);
-		std::string header = "";
-		GetToken(line, tokenOffsets, 0, header);
+		ParseString(lineSv, ' ', tokenList);
+		header = tokenList.at(0);
 		HeaderCode hCode = HashString(header);
-		
 		switch(hCode){
 		case HeaderCode::mtlFile:
-			GetToken(line, tokenOffsets, 1, materialFile_);
+		{
+			materialFile = tokenList.at(1);
+		}
 			break;
 		case HeaderCode::face:
 		{
 			for(int i = 1; i<4; ++i){
-				std::string vertToken = "";
-				GetToken(line, tokenOffsets, (size_t)i, vertToken);
-				interleavedBuffer_.push_back(GetVertexData(vertToken));
+				token = tokenList.at((size_t)i);
+				vertTokenList.clear();
+				ParseString(token, '/', vertTokenList);
+				GetVertexData(vertTokenList,vertPosBuffer,texCoordBuffer,vertNormalBuffer, vertData);
+				interleavedBuffer.push_back(vertData);
 			}
-			if(tokenOffsets.size()>4){																//Triangulating Quad
-				interleavedBuffer_.push_back(interleavedBuffer_.at(interleavedBuffer_.size()-1-2));
-				interleavedBuffer_.push_back(interleavedBuffer_.at(interleavedBuffer_.size()-1-1));
-				std::string vertToken = "";
-				GetToken(line, tokenOffsets, 4, vertToken);
-				interleavedBuffer_.push_back(GetVertexData(vertToken));
+
+			if(tokenList.size()>4){																//Triangulating Quad
+				interleavedBuffer.push_back(interleavedBuffer.at(interleavedBuffer.size()-1-2));
+				interleavedBuffer.push_back(interleavedBuffer.at(interleavedBuffer.size()-1-1));
+				token = tokenList.at(4);
+				vertTokenList.clear();
+				ParseString(token, '/', vertTokenList);
+				GetVertexData(vertTokenList,vertPosBuffer,texCoordBuffer,vertNormalBuffer, vertData);
+				interleavedBuffer.push_back(vertData);
 			}
 		
 		}
@@ -56,37 +199,42 @@ void FileLoader::ParseObjFile(){
 		break;
 		case HeaderCode::vertex:
 		{
-			std::string token="";
-			GetToken(line, tokenOffsets, 1, token);
-			float vx = std::stof(token, nullptr);
-			GetToken(line, tokenOffsets, 2, token);
-			float vy= std::stof(token, nullptr);
-			GetToken(line, tokenOffsets, 3, token);
-			float vz = std::stof(token, nullptr);
-			vertexBuffer_.push_back(DirectX::XMFLOAT3(vx, vy, vz));
+			token = tokenList.at(1);
+			float vx = 0.0f;
+			std::from_chars(token.data(), token.data()+token.size(), vx);
+			token = tokenList.at(2);
+			float vy = 0.0f;
+			std::from_chars(token.data(), token.data()+token.size(), vy);
+			token = tokenList.at(3);
+			float vz = 0.0f;
+			std::from_chars(token.data(), token.data()+token.size(), vz);
+			vertPosBuffer.emplace_back(vx,vy,vz);
 		}
 		break;
 		case HeaderCode::texture:
 		{
-			std::string token="";
-			GetToken(line, tokenOffsets, 1, token);
-			float u = std::stof(token, nullptr);
-			GetToken(line, tokenOffsets, 2, token);
-			float v= std::stof(token, nullptr);
-			texCoordBuffer_.push_back(DirectX::XMFLOAT2(u, v));
+			token = tokenList.at(1);
+			float u = 0.0f;
+			std::from_chars(token.data(), token.data()+token.size(), u);
+			token = tokenList.at(2);
+			float v = 0.0f;
+			std::from_chars(token.data(), token.data()+token.size(), v);
+			texCoordBuffer.emplace_back(u,v);
 		}
 		break;
 
 		case HeaderCode::normal:
 		{
-			std::string token="";
-			GetToken(line, tokenOffsets, 1, token);
-			float nx = std::stof(token, nullptr);
-			GetToken(line, tokenOffsets, 2, token);
-			float ny= std::stof(token, nullptr);
-			GetToken(line, tokenOffsets, 3, token);
-			float nz = std::stof(token, nullptr);
-			vertNormalBuffer_.push_back(DirectX::XMFLOAT3(nx, ny,nz));
+			token = tokenList.at(1);
+			float nx = 0.0f;
+			std::from_chars(token.data(), token.data()+token.size(), nx);
+			token = tokenList.at(2);
+			float ny = 0.0f;
+			std::from_chars(token.data(), token.data()+token.size(), ny);
+			token = tokenList.at(3);
+			float nz = 0.0f;
+			std::from_chars(token.data(), token.data()+token.size(), nz);
+			vertNormalBuffer.emplace_back(nx,ny,nz);
 		}
 		break;
 		case HeaderCode::undef:
@@ -95,81 +243,19 @@ void FileLoader::ParseObjFile(){
 
 		}
 
-		lineNumber++;
 	}
+
+	GenerateIndexBuffer(interleavedBuffer, indexedVertexBuffer, indexBuffer);
+
+}
+
+
+void FileLoader::LoadFileToBuffer(std::string &filePath, std::vector<char> &buffer){
+	std::ifstream readFile(filePath.data(), std::ios::binary|std::ios::ate);
+	assert(readFile.is_open()&&"Error opening file");
+	size_t fileSize = readFile.tellg();
+	buffer.assign(fileSize, '\0');
+	readFile.seekg(0);
+	readFile.read(buffer.data(), fileSize);
 	readFile.close();
-}
-
-HeaderCode FileLoader::HashString(const std::string &header){
-	if(header=="mtllib") return HeaderCode::mtlFile;
-	if(header=="v") return HeaderCode::vertex;
-	if(header=="vt") return HeaderCode::texture;
-	if(header=="vn") return HeaderCode::normal;
-	if(header=="g") return HeaderCode::group;
-	if(header=="usemtl") return HeaderCode::material;
-	if(header=="f") return HeaderCode::face;
-	return HeaderCode::undef;
-}
-
-bool FileLoader::ParseString(std::string string, const char delim, std::vector<std::tuple<size_t,size_t>> &offsets){
-	size_t runningOffset = 0;
-	while(string.size()>0){
-		size_t offset = string.find_first_of(delim);
-		if(offset==std::string::npos){
-			offset = string.size();
-		}
-		if(offset>0) offsets.push_back(std::tuple<size_t,size_t>(runningOffset,runningOffset+offset));
-		string.erase(0, offset+1);
-		runningOffset += (offset+1);
-	}
-	return true;
-
-}
-bool FileLoader::GetToken(const std::string &line, const std::vector<std::tuple<size_t,size_t>> &tokenOffsets, const size_t tokenIdx, std::string &output){
-	assert(tokenIdx<tokenOffsets.size()&& "Accessing out of bound token");
-	output = line.substr(std::get<0>(tokenOffsets.at(tokenIdx)), std::get<1>(tokenOffsets.at(tokenIdx)));
-	return true;
-}
-
-VertexData FileLoader::GetVertexData(std::string &vertToken){
-	std::vector<std::tuple<size_t,size_t>> vertTokenOffsets = {};
-	ParseString(vertToken, '/', vertTokenOffsets);
-	DirectX::XMFLOAT3 vertPos = {0.0f,0.0f,0.0f};
-	DirectX::XMFLOAT2 texCoord= {0.0f,0.0f};
-	DirectX::XMFLOAT3 vertNorm= {0.0f,0.0f,0.0f};
-	std::string token="";
-	GetToken(vertToken, vertTokenOffsets, 0, token);
-	int vertIdx = std::stoi(token, nullptr);
-	if(vertIdx<0){
-		vertIdx += vertexBuffer_.size();
-	}
-	else{
-		vertIdx--;
-	}
-	vertPos = vertexBuffer_.at(vertIdx);
-
-	if(texCoordBuffer_.size()>0){
-		GetToken(vertToken, vertTokenOffsets, 1, token);
-		int texCoordIdx = std::stoi(token, nullptr);
-		if(texCoordIdx<0){
-			texCoordIdx += texCoordBuffer_.size();
-		}
-		else{
-			texCoordIdx--;
-		}
-		texCoord = texCoordBuffer_.at(texCoordIdx);
-	}
-
-
-	if(vertNormalBuffer_.size()>0){
-		GetToken(vertToken, vertTokenOffsets, 2, token);
-		int normIdx = std::stoi(token, nullptr);
-		if(normIdx<0){
-			normIdx += vertNormalBuffer_.size();	
-		}else{
-			normIdx--;
-		}
-		vertNorm = vertNormalBuffer_.at(normIdx);
-	}
-	return {vertPos,texCoord,vertNorm};
 }

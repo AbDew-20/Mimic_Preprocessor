@@ -24,12 +24,11 @@
 #define DWORD_MAX ((DWORD)0xFFFFFFFF)
 #endif
 
+#include <directx/d3dx12.h>
 #include <d3d12.h>
 #include <dxgi1_6.h>
-//#include <d3dcompiler.h>
 #include <DirectXMath.h>
 
-#include <directx/d3dx12.h>
 
 #include <cassert>
 #include <chrono>
@@ -38,3 +37,5 @@
 #include <map>
 
 #include <Core/Helper.h>
+#include <Core/Clock.h>
+#include <Core/ScopedTimer.h>

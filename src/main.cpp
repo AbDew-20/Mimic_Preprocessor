@@ -1,6 +1,6 @@
 #include <Core/Application.h>
 #include <dxgidebug.h>
-#include <Apps/BlankScreen.h>
+#include <Apps/MeshViewer.h>
 
 void LiveObjects(){
 	IDXGIDebug1 *dxgiDebug;
@@ -16,8 +16,8 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR pCmdLine, int cmdShow)
 	app.Init();
 	{
 		std::string filePath = RESOURCES_PATH;
-		filePath.append("Teapot/teapot.obj");
-		BlankScreen screen(&app, windowName, 1200, 720, filePath, true);
+		filePath.append("Dragon/dragon.obj");
+		MeshViewer screen(&app, windowName, 1200, 720, filePath, true);
 		ret = app.Run(&screen);
 	}
 	app.ShutDown();

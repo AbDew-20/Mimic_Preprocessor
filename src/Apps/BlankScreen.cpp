@@ -10,16 +10,10 @@ BlankScreen::BlankScreen(Application *pApp,const std::wstring &name, int width, 
 	pApp_(pApp),
 	filePath_(filePath)
 {
-	vertexBuffer_ = {};
-	texCoordBuffer_ = {};
-	vertNormalBuffer_ = {};
-	interleavedBuffer_ = {};
 }
 
 
 bool BlankScreen::LoadContent(){
-	FileLoader obj(filePath_, vertexBuffer_, texCoordBuffer_, vertNormalBuffer_, interleavedBuffer_);
-	obj.ParseObjFile();
 	return true;
 }
 
@@ -32,7 +26,6 @@ void BlankScreen::OnUpdate(double deltaTime, double totalTime){
 	frameCounter++;
 	elapsedSeconds += deltaTime;
 	if(elapsedSeconds>1.0){
-		char buffer[500];
 		auto fps = frameCounter/elapsedSeconds;
 		DebugPrint("FPS: %f\n",fps);
 		elapsedSeconds = 0;

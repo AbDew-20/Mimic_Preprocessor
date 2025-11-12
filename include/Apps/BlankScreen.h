@@ -1,7 +1,6 @@
 #pragma once
 #include <Core/Game.h>
 #include <Core/Window.h>
-#include <Core/FileLoader.h>
 
 
 class Application;
@@ -22,10 +21,6 @@ protected:
 	virtual void OnWindowDestroy();
 
 private:
-	std::vector<DirectX::XMFLOAT3> vertexBuffer_;
-	std::vector<DirectX::XMFLOAT2> texCoordBuffer_;
-	std::vector<DirectX::XMFLOAT3> vertNormalBuffer_;
-	std::vector<VertexData> interleavedBuffer_;
 	Application *pApp_;
 	const std::string &filePath_;
 

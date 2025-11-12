@@ -8,7 +8,7 @@ void Application::EnableDebugLayers(){
 	ID3D12Debug *pDebugInterface;
 	ThrowIfFailed(D3D12GetDebugInterface(IID_PPV_ARGS(&pDebugInterface)));
 	pDebugInterface->EnableDebugLayer();
-	pDebugInterface_ = pDebugInterface;
+	SafeRelease(pDebugInterface);
 #endif
 }
 Application::Application(HINSTANCE hInstance) :
@@ -58,9 +58,6 @@ void Application::ShutDown(){
 	pCopyCommandQueue_ = nullptr;
 	SafeRelease(pDevice_);
 	SafeRelease(pDxgiAdapter_);
-#if defined(_DEBUG)
-	SafeRelease(pDebugInterface_);
-#endif
 }
 Application::~Application(){
 	bool empty= windowMap_.empty();

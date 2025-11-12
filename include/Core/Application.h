@@ -46,7 +46,6 @@ private:
 	HINSTANCE hInstance_;
 	IDXGIAdapter4 *pDxgiAdapter_;
 	ID3D12Device2 *pDevice_;
-	ID3D12Debug *pDebugInterface_;
 	CommandQueue *pDirectCommandQueue_;
 	CommandQueue *pComputeCommandQueue_;
 	CommandQueue *pCopyCommandQueue_;
