@@ -11,12 +11,12 @@ void LiveObjects(){
 
 int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR pCmdLine, int cmdShow){
 	Application app(hInstance);
-	const std::wstring windowName = L"Blank Screen";
+	const std::wstring windowName = L"Mimic Engine";
 	int ret = 0;
 	app.Init();
 	{
 		std::string filePath = RESOURCES_PATH;
-		filePath.append("Dragon/dragon.obj");
+		filePath.append("Bunny/bunny.obj");
 		MeshViewer screen(&app, windowName, 1200, 720, filePath, true);
 		ret = app.Run(&screen);
 	}

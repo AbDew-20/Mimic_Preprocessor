@@ -1,11 +1,12 @@
 #pragma once
 #include <Core/Game.h>
+#include <Core/VertexTypes.h>
+#include <DirectXMath.h>
 #include <Core/Window.h>
-#include <Core/FileLoader.h>
-#include <Core/CommandQueue.h>
 
 
 class Application;
+class CommandQueue;
 class MeshViewer : public Game{
 	
 public:
@@ -23,8 +24,23 @@ protected:
 	virtual void OnWindowDestroy();
 
 private:
-	void UpdateBufferResource(ID3D12GraphicsCommandList2 *pCommandList, ID3D12Resource **ppDestinationResource, ID3D12Resource **ppStagingResource, size_t numElements, size_t elementSize, const void *buffer, D3D12_RESOURCE_FLAGS flags);
+	void UpdateBufferResource(ID3D12GraphicsCommandList2 *pCommandList,
+		ID3D12Resource **ppDestinationResource,
+		ID3D12Resource **ppStagingResource,
+		size_t numElements, size_t elementSize,
+		const void *buffer, D3D12_RESOURCE_FLAGS flags);
 	void CreateDepthBuffer(int width, int height);
+
+	void UploadMainPassResources(std::vector<VertexPosTexNorm> &indexedVertexData,
+		std::vector<uint32_t> &indexData);
+	void CreateMainPassPipelineState();
+
+	void RecordMainRenderPass(ID3D12GraphicsCommandList2 *pCommandList);
+	void RecordDebugRenderPass(ID3D12GraphicsCommandList2 *pCommandList);
+
+	void UploadDebugPassResources(std::vector<VertexPos> &indexedVertexData,
+		std::vector<uint32_t> &indexData);
+	void CreateDebugPassPipelineState();
 
 
 	Application *pApp_;
@@ -34,14 +50,14 @@ private:
 	ID3D12Resource *pDepthBuffer_;
 	ID3D12DescriptorHeap *pDsvHeap_;
 
-	ID3D12Resource *pVertexBuffer_;
-	D3D12_VERTEX_BUFFER_VIEW vertexBufferView_;
+	ID3D12Resource *pVertexBuffer_[2];
+	D3D12_VERTEX_BUFFER_VIEW vertexBufferView_[2];
 
-	ID3D12Resource *pIndexBuffer_;
-	D3D12_INDEX_BUFFER_VIEW indexBufferView_;
+	ID3D12Resource *pIndexBuffer_[2];
+	D3D12_INDEX_BUFFER_VIEW indexBufferView_[2];
 
 	ID3D12RootSignature *pRootSignature_;
-	ID3D12PipelineState *pPipelineState_;
+	ID3D12PipelineState *pPipelineState_[2];
 
 	DirectX::XMMATRIX viewMatrix_;
 	DirectX::XMMATRIX modelMatrix_;

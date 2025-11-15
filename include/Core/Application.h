@@ -4,7 +4,7 @@
 #include <wrl.h>
 #include <string>
 #include <map>
-#include <Core/PoolAllocator.h>
+#include <Utils/PoolAllocator.h>
 #include <Core/Window.h>
 #include <Core/CommandQueue.h>
 class Game;

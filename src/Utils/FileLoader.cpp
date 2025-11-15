@@ -1,8 +1,8 @@
-#include <Core/FileLoader.h>
+#include <Utils/FileLoader.h>
 #include <Core/PCH.h>
 #include <fstream>
 #include <charconv>
-#include <meshoptimizer/meshoptimizer.h>
+#include <thirdParty/meshoptimizer/meshoptimizer.h>
 
 
 
@@ -68,7 +68,7 @@ namespace{
 		std::vector<DirectX::XMFLOAT3> &vertPosBuffer,
 		std::vector<DirectX::XMFLOAT2> &texCoordBuffer,
 		std::vector<DirectX::XMFLOAT3> &vertNormalBuffer,
-		Vertex &vertData){
+		VertexPosTexNorm &vertData){
 		vertData.vert = {0.0f,0.0f,0.0f};
 		vertData.texCoord = {0.0f,0.0f};
 		vertData.normal = {0.0f,0.0f,0.0f};
@@ -114,13 +114,13 @@ namespace{
 		}
 	}
 
-	void GenerateIndexBuffer(std::vector<Vertex> &interleavedBuffer, std::vector<Vertex> &indexedInterleavedBuffer, std::vector<uint32_t> &indexBuffer){
+	void GenerateIndexBuffer(std::vector<VertexPosTexNorm> &interleavedBuffer, std::vector<VertexPosTexNorm> &indexedInterleavedBuffer, std::vector<uint32_t> &indexBuffer){
 		size_t numIndices = interleavedBuffer.size();
 		std::vector<uint32_t> remap(numIndices);
-		size_t numVertices = meshopt_generateVertexRemap(remap.data(), nullptr, numIndices, interleavedBuffer.data(), numIndices, sizeof(Vertex));
+		size_t numVertices = meshopt_generateVertexRemap(remap.data(), nullptr, numIndices, interleavedBuffer.data(), numIndices, sizeof(VertexPosTexNorm));
 		indexedInterleavedBuffer.resize(numVertices);
 		indexBuffer.resize(numIndices);
-		meshopt_remapVertexBuffer(&indexedInterleavedBuffer[0], interleavedBuffer.data(), numIndices, sizeof(Vertex), remap.data());
+		meshopt_remapVertexBuffer(indexedInterleavedBuffer.data(), interleavedBuffer.data(), numIndices, sizeof(VertexPosTexNorm), remap.data());
 		meshopt_remapIndexBuffer(indexBuffer.data(), nullptr, numIndices, remap.data());
 	}
 }
@@ -128,14 +128,14 @@ namespace{
 
 
 void FileLoader::ParseObjFile(std::string filePath,
-		std::vector<Vertex> &indexedVertexBuffer,
+		std::vector<VertexPosTexNorm> &indexedVertexBuffer,
 		std::vector<uint32_t> &indexBuffer,
 		std::string& materialFile){
 
 	std::vector<DirectX::XMFLOAT3> vertPosBuffer;
 	std::vector<DirectX::XMFLOAT2> texCoordBuffer;
 	std::vector<DirectX::XMFLOAT3> vertNormalBuffer;
-	std::vector<Vertex> interleavedBuffer;
+	std::vector<VertexPosTexNorm> interleavedBuffer;
 
 	vertPosBuffer.reserve(500);
 	texCoordBuffer.reserve(500);
@@ -151,7 +151,7 @@ void FileLoader::ParseObjFile(std::string filePath,
 	std::string line;
 	std::string_view header;
 	std::string_view token;
-	Vertex vertData = {DirectX::XMFLOAT3(),DirectX::XMFLOAT2(),DirectX::XMFLOAT3()};
+	VertexPosTexNorm vertData = {DirectX::XMFLOAT3(),DirectX::XMFLOAT2(),DirectX::XMFLOAT3()};
 	std::vector<std::string_view> vertTokenList;
 	vertTokenList.reserve(3);
 	std::vector<std::string_view> tokenList;
@@ -176,23 +176,29 @@ void FileLoader::ParseObjFile(std::string filePath,
 			break;
 		case HeaderCode::face:
 		{
-			for(int i = 1; i<4; ++i){
-				token = tokenList.at((size_t)i);
-				vertTokenList.clear();
-				ParseString(token, '/', vertTokenList);
-				GetVertexData(vertTokenList,vertPosBuffer,texCoordBuffer,vertNormalBuffer, vertData);
-				interleavedBuffer.push_back(vertData);
+			size_t numTriangles = tokenList.size()-3;
+			
+			token = tokenList.at(1);
+			vertTokenList.clear();
+			ParseString(token, '/', vertTokenList);
+			VertexPosTexNorm vert0;
+			GetVertexData(vertTokenList, vertPosBuffer, texCoordBuffer, vertNormalBuffer, vert0);
+
+
+			for(size_t i = 0; i<numTriangles; ++i){
+				interleavedBuffer.push_back(vert0);
+				for(size_t j = 0; j<2; ++j){
+					token = tokenList.at(i+2+j);
+					vertTokenList.clear();
+					ParseString(token, '/', vertTokenList);
+					GetVertexData(vertTokenList,vertPosBuffer,texCoordBuffer,vertNormalBuffer, vertData);
+					interleavedBuffer.push_back(vertData);
+				}
+					
+			
 			}
 
-			if(tokenList.size()>4){																//Triangulating Quad
-				interleavedBuffer.push_back(interleavedBuffer.at(interleavedBuffer.size()-1-2));
-				interleavedBuffer.push_back(interleavedBuffer.at(interleavedBuffer.size()-1-1));
-				token = tokenList.at(4);
-				vertTokenList.clear();
-				ParseString(token, '/', vertTokenList);
-				GetVertexData(vertTokenList,vertPosBuffer,texCoordBuffer,vertNormalBuffer, vertData);
-				interleavedBuffer.push_back(vertData);
-			}
+
 		
 		}
 
