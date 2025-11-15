@@ -1,6 +1,7 @@
 #include <Core/Application.h>
 #include <Core/PCH.h>
 #include <Core/Game.h>
+#include <Core/KeyCodes.h>
 constexpr wchar_t kWindowClassName[] = L"Mimic_Engine";
 static LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
 void Application::EnableDebugLayers(){
@@ -281,6 +282,7 @@ int Application::Run(Game *pGame){
 	}
 	Flush();
 	pGame->UnloadContent();
+	pGame->Destroy();
 	//TODO: Add Game Cleanup
 
 	return 0;
@@ -314,6 +316,37 @@ static LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM l
 			int width = ((int)(short)LOWORD(lParam));
 			int height = ((int)(short)HIWORD(lParam));
 			pWindow->OnResize(height, width);
+		}
+		break;
+		case WM_KEYDOWN:
+		{
+			MSG charMsg;
+			if(::PeekMessage(&charMsg, hWnd, 0, 0, PM_NOREMOVE)&&charMsg.message==WM_CHAR){
+				GetMessage(&charMsg, hWnd, 0, 0);
+			}
+
+			bool alt = (::GetAsyncKeyState(VK_MENU)&0x8000)!=0;
+			bool ctl = (::GetAsyncKeyState(VK_CONTROL)&0x8000)!=0;
+			bool shift = (::GetAsyncKeyState(VK_SHIFT)&0x8000)!=0;
+
+			KeyCodes key = (KeyCodes)wParam;
+			pWindow->OnKeyPress(key, shift, ctl, alt);
+		}
+		break;
+		case WM_KEYUP:
+		{
+			MSG charMsg;
+			if(::PeekMessage(&charMsg, hWnd, 0, 0, PM_NOREMOVE)&&charMsg.message==WM_CHAR){
+				GetMessage(&charMsg, hWnd, 0, 0);
+			}
+
+			bool alt = (::GetAsyncKeyState(VK_MENU)&0x8000)!=0;
+			bool ctl = (::GetAsyncKeyState(VK_CONTROL)&0x8000)!=0;
+			bool shift = (::GetAsyncKeyState(VK_SHIFT)&0x8000)!=0;
+
+			KeyCodes key = (KeyCodes)wParam;
+			pWindow->OnKeyRelease(key, shift, ctl, alt);
+		
 		}
 		break;
 		case WM_CLOSE:

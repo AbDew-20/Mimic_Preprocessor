@@ -65,6 +65,15 @@ void Window::OnResize(int clientHeight, int clientWidth){
 	}
 
 }
+
+void Window::OnKeyPress(KeyCodes key, bool shift, bool ctl, bool alt){
+	pGame_->OnKeyPress(key, shift, ctl, alt);
+
+}
+
+void Window::OnKeyRelease(KeyCodes key, bool shift, bool ctl, bool alt){
+	pGame_->OnKeyRelease(key, shift, ctl, alt);
+}
 IDXGISwapChain4 *Window::CreateSwapChain(){
 
 	IDXGISwapChain4 *pDxgiSwapChain4;
@@ -180,6 +189,7 @@ void Window::SetFullscreen(bool fullscreen){
 			MONITORINFOEX monitorInfo = {};
 			monitorInfo.cbSize = sizeof(MONITORINFOEX);
 			::GetMonitorInfoW(hMonitor, &monitorInfo);
+			windowRect_ = monitorInfo.rcMonitor;
 
 			::SetWindowPos(hWnd_, HWND_NOTOPMOST, windowRect_.left, windowRect_.top,
 				windowRect_.right-windowRect_.left, windowRect_.top-windowRect_.bottom,
@@ -189,7 +199,7 @@ void Window::SetFullscreen(bool fullscreen){
 		else{
 			::SetWindowLongW(hWnd_, GWL_STYLE, WS_OVERLAPPEDWINDOW);
 			::SetWindowPos(hWnd_, HWND_NOTOPMOST, windowRect_.left, windowRect_.top,
-				windowRect_.right-windowRect_.left, windowRect_.top-windowRect_.bottom,
+				clientWidth_, clientHeight_,
 				SWP_FRAMECHANGED|SWP_NOACTIVATE);
 			::ShowWindow(hWnd_, SW_NORMAL);
 		}

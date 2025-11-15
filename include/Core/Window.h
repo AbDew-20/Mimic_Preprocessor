@@ -6,6 +6,7 @@
 #include <string>
 #include <Core/Helper.h>
 #include <Core/Clock.h>
+#include <Core/KeyCodes.h>
 class Application;
 class Window{
 public:
@@ -32,6 +33,7 @@ public:
 	D3D12_CPU_DESCRIPTOR_HANDLE GetCurrentRenderTargetView() const;
 	UINT Present();
 	void Init();
+	constexpr UINT GetMaxBufferCount(){ return 3; }
 protected:
 	friend LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
 	friend class Application;
@@ -40,6 +42,8 @@ protected:
 	virtual void OnUpdate();
 	virtual void OnRender();
 	virtual void OnResize(int clientHeight, int clientWidth);
+	virtual void OnKeyPress(KeyCodes key, bool shift, bool ctl, bool alt);
+	virtual void OnKeyRelease(KeyCodes key, bool shift, bool ctl, bool alt);
 	inline uint64_t GetFrameCounter(){ return frameCounter_; }
 	IDXGISwapChain4 *CreateSwapChain();
 	void UpdateRenderTargetViews();

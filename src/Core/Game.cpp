@@ -37,6 +37,8 @@ void Game::OnResize(int height, int width){
 
 void Game::OnRender(double deltaTime, double totalTime){}
 void Game::OnUpdate(double deltaTime, double totalTime){}
+void Game::OnKeyPress(KeyCodes key, bool shift, bool ctl, bool alt){}
+void Game::OnKeyRelease(KeyCodes key, bool shift, bool ctl, bool alt){}
 void Game::OnWindowDestroy(){
 	UnloadContent();
 }

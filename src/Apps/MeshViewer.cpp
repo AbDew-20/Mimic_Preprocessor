@@ -14,7 +14,10 @@ MeshViewer::MeshViewer(Application *pApp,const std::wstring &name, int width, in
 	pApp_(pApp),
 	filePath_(filePath),
 	pDepthBuffer_(nullptr),
-	pDsvHeap_(nullptr)
+	pDsvHeap_(nullptr),
+	cameraPos_(DirectX::XMFLOAT4(0.0f,0.0f,-5.0f, 0.0f)),
+	cameraVelocity_(DirectX::XMFLOAT4(0.0f,0.0f,0.0f, 0.0f)),
+	boundingBoxVisible_(false)
 {
 }
 
@@ -79,6 +82,71 @@ void MeshViewer::UnloadContent(){
 	SafeRelease(pVertexBuffer_[1]);
 }
 
+void MeshViewer::OnResize(int height, int width){
+	super::OnResize(height, width);
+	CreateDepthBuffer(width, height);
+}
+
+void MeshViewer::OnKeyPress(KeyCodes key, bool shift, bool ctl, bool alt){
+	switch(key){
+	case KeyCodes::F:
+		pWindow->ToggleFullscreen();
+		break;
+	case KeyCodes::V:
+		pWindow->ToggleVSync();
+		break;
+	case KeyCodes::Esc:
+		pApp_->Quit(0);
+		break;
+	case KeyCodes::W:
+		cameraVelocity_.y =	+GetCameraSpeed();
+		break;			
+	case KeyCodes::S:
+		cameraVelocity_.y =	-GetCameraSpeed();
+		break;			
+	case KeyCodes::A:
+		cameraVelocity_.x =	-GetCameraSpeed();
+		break;			
+	case KeyCodes::D:
+		cameraVelocity_.x =	+GetCameraSpeed();
+		break;			
+	case KeyCodes::Q:
+		cameraVelocity_.z =	+GetCameraSpeed();
+		break;			
+	case KeyCodes::E:
+		cameraVelocity_.z =	-GetCameraSpeed();
+		break;
+	case KeyCodes::B:
+		boundingBoxVisible_ = !boundingBoxVisible_;
+		break;
+	
+	}
+
+}
+void MeshViewer::OnKeyRelease(KeyCodes key, bool shift, bool ctl, bool alt){
+	switch(key){
+	case KeyCodes::W:
+		cameraVelocity_.y = 0.0f;
+		break;
+	case KeyCodes::S:
+		cameraVelocity_.y = 0.0f;
+		break;
+	case KeyCodes::A:
+		cameraVelocity_.x = 0.0f;
+		break;
+	case KeyCodes::D:
+		cameraVelocity_.x = 0.0f;
+		break;
+	case KeyCodes::Q:
+		cameraVelocity_.z = 0.0f;
+		break;
+	case KeyCodes::E:
+		cameraVelocity_.z = 0.0f;
+		break;
+	
+	}
+}
+
 
 void MeshViewer::OnUpdate(double deltaTime, double totalTime){
 	static double elapsedSeconds =0.0;
@@ -95,11 +163,12 @@ void MeshViewer::OnUpdate(double deltaTime, double totalTime){
 	float angle = static_cast<float>(totalTime*90.0/200.0);
 	const DirectX::XMVECTOR rotationAxis = DirectX::XMVectorSet(0, 1, 0, 0);
 	modelMatrix_ = DirectX::XMMatrixRotationAxis(rotationAxis, angle);
-
-	const DirectX::XMVECTOR eyePostition = DirectX::XMVectorSet(0, 0, -5, 0);
+	DirectX::XMStoreFloat4(&cameraPos_, DirectX::XMVectorAdd(DirectX::XMVectorScale(DirectX::XMLoadFloat4(&cameraVelocity_), deltaTime),DirectX::XMLoadFloat4(&cameraPos_)));
+	const DirectX::XMVECTOR eyePostition = DirectX::XMLoadFloat4(&cameraPos_);
 	const DirectX::XMVECTOR focusPoint = DirectX::XMVectorSet(0, 0, 0, 1);
 	const DirectX::XMVECTOR upDirection = DirectX::XMVectorSet(0, 1, 0, 0);
-	viewMatrix_ = DirectX::XMMatrixLookAtLH(eyePostition, focusPoint, upDirection);
+	viewMatrix_ = DirectX::XMMatrixLookToLH(eyePostition, DirectX::XMVectorSet(0, 0, 1, 0), upDirection);
+	//viewMatrix_ = DirectX::XMMatrixLookAtLH(eyePostition, focusPoint, upDirection);
 
 	float aspectRatio = GetClientWidth()/static_cast<float>(GetClientHeight());
 	projectionMatrix_ = DirectX::XMMatrixPerspectiveFovLH(DirectX::XMConvertToRadians(45.0f), aspectRatio, 0.1f, 100.0f);
@@ -138,13 +207,21 @@ void MeshViewer::OnRender(double deltaTime, double totalTime){
 	pCommandList->SetGraphicsRoot32BitConstants(0, sizeof(DirectX::XMMATRIX)/4, &modelMatrix_,16);
 
 	RecordMainRenderPass(pCommandList);
-	RecordDebugRenderPass(pCommandList);
+	if(boundingBoxVisible_){
+		RecordDebugRenderPass(pCommandList);
+	}
 
 	barrier = CD3DX12_RESOURCE_BARRIER::Transition(pBackBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
 	pCommandList->ResourceBarrier(1, &barrier);
 	fenceValues_[currentBackBufferIdx] = pApp_->GetCommandQueue()->ExecuteCommandList(pCommandList);
-	currentBackBufferIdx= pWindow->Present();
-	pApp_->GetCommandQueue()->WaitForFenceValue(fenceValues_[currentBackBufferIdx]);
+		
+	{
+		ScopedTimer timer("Present");
+		currentBackBufferIdx = pWindow->Present();
+
+		pApp_->GetCommandQueue()->WaitForFenceValue(fenceValues_[currentBackBufferIdx]);
+	}
+
 }
 
 void MeshViewer::OnWindowDestroy(){

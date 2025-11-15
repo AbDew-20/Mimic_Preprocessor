@@ -20,6 +20,9 @@ public:
 protected:
 	virtual void OnUpdate(double deltaTime, double totalTime) override;
 	virtual void OnRender(double deltaTime, double totalTime) override;
+	virtual void OnResize(int height, int width) override;
+	virtual void OnKeyPress(KeyCodes key, bool shift, bool ctl, bool alt) override;
+	virtual void OnKeyRelease(KeyCodes key, bool shift, bool ctl, bool alt) override;
 
 	virtual void OnWindowDestroy();
 
@@ -42,6 +45,8 @@ private:
 		std::vector<uint32_t> &indexData);
 	void CreateDebugPassPipelineState();
 
+	constexpr float GetCameraSpeed(){ return 1.0f; }
+
 
 	Application *pApp_;
 	uint64_t fenceValues_[Window::kBufferCount] = {};
@@ -62,6 +67,10 @@ private:
 	DirectX::XMMATRIX viewMatrix_;
 	DirectX::XMMATRIX modelMatrix_;
 	DirectX::XMMATRIX projectionMatrix_;
+	DirectX::XMFLOAT4 cameraVelocity_;
+	DirectX::XMFLOAT4 cameraPos_;
+
+	bool boundingBoxVisible_;
 
 
 

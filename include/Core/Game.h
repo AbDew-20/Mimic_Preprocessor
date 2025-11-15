@@ -2,6 +2,7 @@
 
 #include <string>
 #include <memory>
+#include <Core/KeyCodes.h>
 class Window;
 class Application;
 
@@ -29,6 +30,8 @@ protected:
 	virtual void OnUpdate(double deltaTime, double totalTime);
 	virtual void OnRender(double deltaTime, double totalTime);
 	virtual void OnResize(int height, int width);
+	virtual void OnKeyPress(KeyCodes key, bool shift, bool ctl, bool alt);
+	virtual void OnKeyRelease(KeyCodes key, bool shift, bool ctl, bool alt);
 	virtual void OnWindowDestroy();
 	Window *pWindow;
 private:
