@@ -26,7 +26,7 @@ VSOutput main(VertexData input)
 {
     VSOutput output;
     output.position = mul(ModelViewProjectionCB.MVP, float4(input.position, 1.0f));
-    output.normal = mul(ModelViewProjectionCB.model, float4(input.normal, 1.0f));
+    output.normal = mul(ModelViewProjectionCB.model, float4(input.normal, 0.0f));
 
     return output;
 

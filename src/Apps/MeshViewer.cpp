@@ -3,21 +3,22 @@
 #include <Core/PCH.h>
 #include <Core/CommandQueue.h>
 #include <Utils/ScopedTimer.h>
-#include <Utils/FileLoader.h>
 #include <Utils/MeshTools.h>
 
 
 
 
-MeshViewer::MeshViewer(Application *pApp,const std::wstring &name, int width, int height, const std::string& filePath, bool vSync):
-	super(pApp,	name, width, height, vSync),
+MeshViewer::MeshViewer(Application *pApp, const std::wstring &name, int width, int height, const std::string &filePath, bool vSync) :
+	super(pApp, name, width, height, vSync),
 	pApp_(pApp),
 	filePath_(filePath),
 	pDepthBuffer_(nullptr),
 	pDsvHeap_(nullptr),
-	cameraPos_(DirectX::XMFLOAT4(0.0f,0.0f,-5.0f, 0.0f)),
-	cameraVelocity_(DirectX::XMFLOAT4(0.0f,0.0f,0.0f, 0.0f)),
-	boundingBoxVisible_(false)
+	cameraPos_(DirectX::XMFLOAT4(0.0f, 0.0f, -5.0f, 0.0f)),
+	cameraVelocity_(DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f)),
+	boundingBoxVisible_(false),
+	meshIdx(0),
+	zoom_(1.0f)
 {
 }
 
@@ -25,36 +26,40 @@ MeshViewer::MeshViewer(Application *pApp,const std::wstring &name, int width, in
 bool MeshViewer::LoadContent(){
 	std::vector<VertexPosTexNorm> indexedVertexData = {};
 	std::vector<uint32_t> indexData = {};
-	std::vector<uint32_t> lodData = {};
 	std::string materialFile;
+	
 	{
 		ScopedTimer timer("File Parse");
-		FileLoader::ParseObjFile(filePath_, indexedVertexData, indexData,materialFile);
+		FileTools::Obj obj(filePath_);
+		obj.MapFile();
+		obj.ParseObjFile(&indexedVertexData, &indexData, &materialFile, &meshOffsetData_);
+		obj.CloseFile();
 	}
-	MeshTools::SimplifyMesh(indexedVertexData,indexData,lodData);
 	DebugPrint("Triangles: %i\n", indexData.size());
-	DebugPrint("LOD Triangles: %i\n", lodData.size());
+	//DebugPrint("LOD Triangles: %i\n", lodData.size());
 
 	std::vector<AABB> maxBoundingBoxData = {};
 	std::vector<AABB> minBoundingBoxData = {};
 	std::vector<VertexPos> indexedBBVertexData = {};
 	std::vector<uint32_t> bbIndexData = {};
-	{
-		ScopedTimer timer("AABB");
-		double exp =std::log2((double)lodData.size()/30.0);
+	for(auto iter = meshOffsetData_.begin(); iter!=meshOffsetData_.end();++iter){
+		maxBoundingBoxData.clear();
+		minBoundingBoxData.clear();
+		double exp = std::log2((double)iter->numIndices/30.0);
 		size_t maxLimit = (size_t)std::pow(2, (size_t)exp);
 		size_t minLimit = (size_t)std::pow(2, (size_t)(exp/2));
-		MeshTools::GenerateAABBData(indexedVertexData, lodData, maxBoundingBoxData, maxLimit);
-		MeshTools::GenerateAABBData(indexedVertexData, lodData, minBoundingBoxData, minLimit);
-		MeshTools::GenerateAABBWireFrame(maxBoundingBoxData,indexedBBVertexData, bbIndexData);
+		MeshTools::GenerateAABBData(indexedVertexData.data(), indexedVertexData.size(), indexData.data()+iter->indexOffset, iter->numIndices, maxLimit, &maxBoundingBoxData);
+		MeshTools::GenerateAABBData(indexedVertexData.data(), indexedVertexData.size(), indexData.data()+iter->indexOffset, iter->numIndices, minLimit, &minBoundingBoxData);
+		//MeshTools::GenerateAABBWireFrame(maxBoundingBoxData,indexedBBVertexData, bbIndexData);
+		iter->occluderScore = MeshTools::GetOccluderPotential(minBoundingBoxData, maxBoundingBoxData, iter->numIndices/3);
+		iter->boundingBox = maxBoundingBoxData.back();
+		DebugPrint("Occluder Potential: %f\n", iter->occluderScore);
 	}
-	float occluderPotential = MeshTools::GetOccluderPotential(minBoundingBoxData, maxBoundingBoxData, lodData.size()/3);
-	DebugPrint("Occluder Potential: %f\n", occluderPotential);
 
 	ID3D12Device2 *pDevice = pApp_->GetDevice(); 
 
-	UploadMainPassResources(indexedVertexData,lodData);
-	UploadDebugPassResources(indexedBBVertexData, bbIndexData);
+	UploadMainPassResources(indexedVertexData,indexData);
+	//UploadDebugPassResources(indexedBBVertexData, bbIndexData);
 
 	D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc = {};
 	dsvHeapDesc.NumDescriptors = 1;
@@ -78,8 +83,8 @@ void MeshViewer::UnloadContent(){
 	SafeRelease(pDsvHeap_);
 	SafeRelease(pIndexBuffer_[0]);
 	SafeRelease(pVertexBuffer_[0]);
-	SafeRelease(pIndexBuffer_[1]);
-	SafeRelease(pVertexBuffer_[1]);
+	//SafeRelease(pIndexBuffer_[1]);
+	//SafeRelease(pVertexBuffer_[1]);
 }
 
 void MeshViewer::OnResize(int height, int width){
@@ -119,6 +124,29 @@ void MeshViewer::OnKeyPress(KeyCodes key, bool shift, bool ctl, bool alt){
 	case KeyCodes::B:
 		boundingBoxVisible_ = !boundingBoxVisible_;
 		break;
+	case KeyCodes::Up:
+		if(meshIdx==meshOffsetData_.size()-1){
+			meshIdx = 0;
+		}
+		else{
+			meshIdx++;
+		}
+		DebugPrint("Occluder Score: %f\n", meshOffsetData_.at(meshIdx).occluderScore);
+		break;
+	case KeyCodes::Down:
+		if(meshIdx==0){
+			meshIdx = meshOffsetData_.size()-1;
+		}
+		else{
+			meshIdx--;
+		}
+		DebugPrint("Occluder Score: %f\n", meshOffsetData_.at(meshIdx).occluderScore);
+		break;
+	case KeyCodes::Z:
+		zoom_ *= 0.5;
+		break;
+	case KeyCodes::X:
+		zoom_ *= 5;
 	
 	}
 
@@ -159,16 +187,23 @@ void MeshViewer::OnUpdate(double deltaTime, double totalTime){
 		elapsedSeconds = 0;
 		frameCounter = 0;
 	}
+	size_t index = meshIdx;
+	AABB boundingBox = meshOffsetData_.at(index).boundingBox;
+	DirectX::XMFLOAT3 bbCenter;
+	boundingBox.Center(&bbCenter);
+	DirectX::XMMATRIX translationMatrix= DirectX::XMMatrixTranslationFromVector(DirectX::XMVectorNegate(DirectX::XMLoadFloat3(&bbCenter)));
 
 	float angle = static_cast<float>(totalTime*90.0/200.0);
 	const DirectX::XMVECTOR rotationAxis = DirectX::XMVectorSet(0, 1, 0, 0);
 	modelMatrix_ = DirectX::XMMatrixRotationAxis(rotationAxis, angle);
+	modelMatrix_ = DirectX::XMMatrixMultiply(modelMatrix_,translationMatrix);
+	modelMatrix_ = translationMatrix;
+
 	DirectX::XMStoreFloat4(&cameraPos_, DirectX::XMVectorAdd(DirectX::XMVectorScale(DirectX::XMLoadFloat4(&cameraVelocity_), deltaTime),DirectX::XMLoadFloat4(&cameraPos_)));
 	const DirectX::XMVECTOR eyePostition = DirectX::XMLoadFloat4(&cameraPos_);
 	const DirectX::XMVECTOR focusPoint = DirectX::XMVectorSet(0, 0, 0, 1);
 	const DirectX::XMVECTOR upDirection = DirectX::XMVectorSet(0, 1, 0, 0);
 	viewMatrix_ = DirectX::XMMatrixLookToLH(eyePostition, DirectX::XMVectorSet(0, 0, 1, 0), upDirection);
-	//viewMatrix_ = DirectX::XMMatrixLookAtLH(eyePostition, focusPoint, upDirection);
 
 	float aspectRatio = GetClientWidth()/static_cast<float>(GetClientHeight());
 	projectionMatrix_ = DirectX::XMMatrixPerspectiveFovLH(DirectX::XMConvertToRadians(45.0f), aspectRatio, 0.1f, 100.0f);
@@ -201,26 +236,26 @@ void MeshViewer::OnRender(double deltaTime, double totalTime){
 
 	pCommandList->OMSetRenderTargets(1, &rtv, FALSE, &dsv);
 
-	DirectX::XMMATRIX mvpMatrix = DirectX::XMMatrixMultiply(modelMatrix_, viewMatrix_);
+	
+	DirectX::XMMATRIX mvpMatrix = DirectX::XMMatrixMultiply(modelMatrix_, DirectX::XMMatrixScaling(zoom_,zoom_,zoom_));
+	mvpMatrix = DirectX::XMMatrixMultiply(mvpMatrix, viewMatrix_);
 	mvpMatrix = DirectX::XMMatrixMultiply(mvpMatrix, projectionMatrix_);
 	pCommandList->SetGraphicsRoot32BitConstants(0, sizeof(DirectX::XMMATRIX)/4, &mvpMatrix,0);
 	pCommandList->SetGraphicsRoot32BitConstants(0, sizeof(DirectX::XMMATRIX)/4, &modelMatrix_,16);
 
-	RecordMainRenderPass(pCommandList);
+	RecordMainRenderPass(pCommandList, meshOffsetData_.at(meshIdx));
 	if(boundingBoxVisible_){
-		RecordDebugRenderPass(pCommandList);
+		//RecordDebugRenderPass(pCommandList);
 	}
 
 	barrier = CD3DX12_RESOURCE_BARRIER::Transition(pBackBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
 	pCommandList->ResourceBarrier(1, &barrier);
 	fenceValues_[currentBackBufferIdx] = pApp_->GetCommandQueue()->ExecuteCommandList(pCommandList);
 		
-	{
-		ScopedTimer timer("Present");
-		currentBackBufferIdx = pWindow->Present();
+	currentBackBufferIdx = pWindow->Present();
 
-		pApp_->GetCommandQueue()->WaitForFenceValue(fenceValues_[currentBackBufferIdx]);
-	}
+	pApp_->GetCommandQueue()->WaitForFenceValue(fenceValues_[currentBackBufferIdx]);
+	
 
 }
 
@@ -311,7 +346,7 @@ void MeshViewer::CreateDepthBuffer(int width, int height){
 
 }
 
-void MeshViewer::UploadMainPassResources(std::vector<VertexPosTexNorm> &indexedVertexData, std::vector<uint32_t> &indexData){
+void MeshViewer::UploadMainPassResources(const std::vector<VertexPosTexNorm> &indexedVertexData, const std::vector<uint32_t> &indexData) {
 	CommandQueue *pCommandQueue = pApp_->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COPY);
 	ID3D12GraphicsCommandList2 *pCommandList = pCommandQueue->GetCommandList(); 
 	ID3D12Resource *pStagingVertexBuffer =nullptr;
@@ -343,12 +378,12 @@ void MeshViewer::CreateMainPassPipelineState(){
 	std::vector<char> vertShader;
 	std::string filePath = SHADERS_PATH;
 	filePath.append("vs.cso");
-	FileLoader::LoadFileToBuffer(filePath, vertShader);
+	FileTools::LoadFileToBuffer(filePath, &vertShader);
 
 	std::vector<char> pixelShader;
 	filePath = SHADERS_PATH;
 	filePath.append("ps.cso");
-	FileLoader::LoadFileToBuffer(filePath, pixelShader);
+	FileTools::LoadFileToBuffer(filePath, &pixelShader);
 	
 
 	D3D12_FEATURE_DATA_ROOT_SIGNATURE featureData = {};
@@ -407,7 +442,7 @@ void MeshViewer::CreateMainPassPipelineState(){
 	ThrowIfFailed(pDevice->CreatePipelineState(&pipelineStateStreamDesc, IID_ID3D12PipelineState, reinterpret_cast<void **>(&pPipelineState_[0])));
 }
 
-void MeshViewer::UploadDebugPassResources(std::vector<VertexPos> &indexedVertexData, std::vector<uint32_t> &indexData){
+void MeshViewer::UploadDebugPassResources(const std::vector<VertexPos> &indexedVertexData, const std::vector<uint32_t> &indexData){
 	CommandQueue *pCommandQueue = pApp_->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COPY);
 	ID3D12GraphicsCommandList2 *pCommandList = pCommandQueue->GetCommandList(); 
 	ID3D12Resource *pStagingVertexBuffer =nullptr;
@@ -438,12 +473,12 @@ void MeshViewer::CreateDebugPassPipelineState(){
 	std::vector<char> vertShader;
 	std::string filePath = SHADERS_PATH;
 	filePath.append("vs_debug.cso");
-	FileLoader::LoadFileToBuffer(filePath, vertShader);
+	FileTools::LoadFileToBuffer(filePath, &vertShader);
 
 	std::vector<char> pixelShader;
 	filePath = SHADERS_PATH;
 	filePath.append("ps_debug.cso");
-	FileLoader::LoadFileToBuffer(filePath, pixelShader);
+	FileTools::LoadFileToBuffer(filePath, &pixelShader);
 	
  
 	struct PipelineStateStream{
@@ -477,18 +512,23 @@ void MeshViewer::CreateDebugPassPipelineState(){
 	ThrowIfFailed(pDevice->CreatePipelineState(&pipelineStateStreamDesc, IID_ID3D12PipelineState, reinterpret_cast<void **>(&pPipelineState_[1])));
 
 }
-void MeshViewer::RecordMainRenderPass(ID3D12GraphicsCommandList2 *pCommandList){
+void MeshViewer::RecordMainRenderPass(ID3D12GraphicsCommandList2 *pCommandList, MeshInfo &meshInfo) const{
 	pCommandList->SetPipelineState(pPipelineState_[0]);
 	pCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	pCommandList->IASetVertexBuffers(0,1, &vertexBufferView_[0]);
 	pCommandList->IASetIndexBuffer(&indexBufferView_[0]);
-	pCommandList->DrawIndexedInstanced((UINT)indexBufferView_[0].SizeInBytes/sizeof(uint32_t), 1, 0, 0, 0);
+	pCommandList->DrawIndexedInstanced((UINT)meshInfo.numIndices, 1, meshInfo.indexOffset, 0, 0);
 }
-void MeshViewer::RecordDebugRenderPass(ID3D12GraphicsCommandList2 *pCommandList){
+void MeshViewer::RecordDebugRenderPass(ID3D12GraphicsCommandList2 *pCommandList) const{
 	pCommandList->SetPipelineState(pPipelineState_[1]);
 	pCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINELIST);
 	pCommandList->IASetVertexBuffers(0, 1, &vertexBufferView_[1]);
 	pCommandList->IASetIndexBuffer(&indexBufferView_[1]);
 	pCommandList->DrawIndexedInstanced((UINT)indexBufferView_[1].SizeInBytes/sizeof(uint32_t),1, 0, 0,0);
+
+}
+
+void MeshViewer::SreenSpaceSize(const AABB &boundingBox) const{
+	
 
 }

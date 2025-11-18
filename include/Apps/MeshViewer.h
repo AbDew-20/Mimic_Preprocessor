@@ -3,10 +3,12 @@
 #include <Core/VertexTypes.h>
 #include <DirectXMath.h>
 #include <Core/Window.h>
+#include <Utils/FileTools.h>
 
 
 class Application;
 class CommandQueue;
+struct MeshInfo;
 class MeshViewer : public Game{
 	
 public:
@@ -34,23 +36,28 @@ private:
 		const void *buffer, D3D12_RESOURCE_FLAGS flags);
 	void CreateDepthBuffer(int width, int height);
 
-	void UploadMainPassResources(std::vector<VertexPosTexNorm> &indexedVertexData,
-		std::vector<uint32_t> &indexData);
+	void UploadMainPassResources(const std::vector<VertexPosTexNorm> &indexedVertexData,
+		const std::vector<uint32_t> &indexData);
 	void CreateMainPassPipelineState();
 
-	void RecordMainRenderPass(ID3D12GraphicsCommandList2 *pCommandList);
-	void RecordDebugRenderPass(ID3D12GraphicsCommandList2 *pCommandList);
+	void RecordMainRenderPass(ID3D12GraphicsCommandList2 *pCommandList, MeshInfo &meshInfo) const;
+	void RecordDebugRenderPass(ID3D12GraphicsCommandList2 *pCommandList) const;
 
-	void UploadDebugPassResources(std::vector<VertexPos> &indexedVertexData,
-		std::vector<uint32_t> &indexData);
+	void UploadDebugPassResources(
+		const std::vector<VertexPos> &indexedVertexData,
+		const std::vector<uint32_t> &indexData);
+
 	void CreateDebugPassPipelineState();
 
-	constexpr float GetCameraSpeed(){ return 1.0f; }
+	void SreenSpaceSize(const AABB &boundingBox) const;
+
+	inline constexpr float GetCameraSpeed(){ return 1.0f; }
 
 
 	Application *pApp_;
 	uint64_t fenceValues_[Window::kBufferCount] = {};
-	const std::string &filePath_;
+	const std::string filePath_;
+	std::vector<MeshInfo> meshOffsetData_;
 
 	ID3D12Resource *pDepthBuffer_;
 	ID3D12DescriptorHeap *pDsvHeap_;
@@ -71,6 +78,8 @@ private:
 	DirectX::XMFLOAT4 cameraPos_;
 
 	bool boundingBoxVisible_;
+	size_t meshIdx;
+	float zoom_;
 
 
 
