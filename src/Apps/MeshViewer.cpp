@@ -196,8 +196,8 @@ void MeshViewer::OnUpdate(double deltaTime, double totalTime){
 	float angle = static_cast<float>(totalTime*90.0/200.0);
 	const DirectX::XMVECTOR rotationAxis = DirectX::XMVectorSet(0, 1, 0, 0);
 	modelMatrix_ = DirectX::XMMatrixRotationAxis(rotationAxis, angle);
-	modelMatrix_ = DirectX::XMMatrixMultiply(modelMatrix_,translationMatrix);
-	modelMatrix_ = translationMatrix;
+	modelMatrix_ = DirectX::XMMatrixMultiply(translationMatrix,modelMatrix_);
+	//modelMatrix_ = translationMatrix;
 
 	DirectX::XMStoreFloat4(&cameraPos_, DirectX::XMVectorAdd(DirectX::XMVectorScale(DirectX::XMLoadFloat4(&cameraVelocity_), deltaTime),DirectX::XMLoadFloat4(&cameraPos_)));
 	const DirectX::XMVECTOR eyePostition = DirectX::XMLoadFloat4(&cameraPos_);

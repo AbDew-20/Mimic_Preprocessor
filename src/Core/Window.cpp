@@ -11,7 +11,7 @@ Window::Window(Application *app, HWND hwnd, const std::wstring &windowName, int 
 	fullscreen_(false),
 	frameCounter_(0),
 	app_(app),
-	currentBackBufferIndex_ (0)
+	currentBackBufferIndex_(0)
 	{}
 Window &Window::operator= (Window &&other) noexcept{
 	hWnd_ = other.hWnd_;
@@ -157,6 +157,12 @@ void Window::Destroy(){
 	}
 	return;
 }
+
+bool Window::IsFocused()const {
+	HWND hwnd = ::GetFocus();
+	return (hWnd_==hwnd);
+}
+
 int Window::GetClientHeight()const{
 	return clientHeight_;
 }

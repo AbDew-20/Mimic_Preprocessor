@@ -28,6 +28,8 @@ public:
 	void ToggleFullscreen();
 	void Show();
 	void Hide();
+	inline bool IsMinimized() const{ return ::IsIconic(hWnd_); }
+	bool IsFocused() const;
 	UINT GetCurrentBackbufferIndex() const;
 	ID3D12Resource *GetCurrentBackBuffer() const;
 	D3D12_CPU_DESCRIPTOR_HANDLE GetCurrentRenderTargetView() const;

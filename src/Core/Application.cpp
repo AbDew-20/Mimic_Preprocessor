@@ -257,7 +257,9 @@ int Application::Run(Game *pGame){
 	pGame->Initialize();
 	pGame->LoadContent();
 
-
+	Clock appClock;
+	bool focused = true;
+	bool minimized = false;
 	bool running = true;
 	MSG msg = {};
 	while(running){
@@ -272,18 +274,27 @@ int Application::Run(Game *pGame){
 		}
 
 		if(running){
+			appClock.Tick();
 			for(auto iter = windowMap_.begin(); iter!=windowMap_.end(); ++iter){
 				iter->second->OnUpdate();
-				iter->second->OnRender();
+				focused = iter->second->IsFocused();
+				minimized = iter->second->IsMinimized();
+				if(!minimized){
+					iter->second->OnRender();
+				}
 			}
-				
+
+			if(!focused||minimized){
+				int time = 60-(DWORD)round(appClock.GetDeltaMilliSeconds());
+				time = (time<0) ? 0 : time;
+				::Sleep(time);
+			}
 		}
 	
 	}
 	Flush();
 	pGame->UnloadContent();
 	pGame->Destroy();
-	//TODO: Add Game Cleanup
 
 	return 0;
 }
