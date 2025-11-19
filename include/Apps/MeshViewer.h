@@ -49,7 +49,8 @@ private:
 
 	void CreateDebugPassPipelineState();
 
-	void SreenSpaceSize(const AABB &boundingBox) const;
+	void CenterMesh();
+	void ScaleMesh();
 
 	inline constexpr float GetCameraSpeed(){ return 1.0f; }
 

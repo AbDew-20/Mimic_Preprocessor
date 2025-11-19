@@ -146,7 +146,7 @@ void MeshViewer::OnKeyPress(KeyCodes key, bool shift, bool ctl, bool alt){
 		zoom_ *= 0.5;
 		break;
 	case KeyCodes::X:
-		zoom_ *= 5;
+		zoom_ *= 2;
 	
 	}
 
@@ -187,17 +187,9 @@ void MeshViewer::OnUpdate(double deltaTime, double totalTime){
 		elapsedSeconds = 0;
 		frameCounter = 0;
 	}
-	size_t index = meshIdx;
-	AABB boundingBox = meshOffsetData_.at(index).boundingBox;
-	DirectX::XMFLOAT3 bbCenter;
-	boundingBox.Center(&bbCenter);
-	DirectX::XMMATRIX translationMatrix= DirectX::XMMatrixTranslationFromVector(DirectX::XMVectorNegate(DirectX::XMLoadFloat3(&bbCenter)));
 
-	float angle = static_cast<float>(totalTime*90.0/200.0);
-	const DirectX::XMVECTOR rotationAxis = DirectX::XMVectorSet(0, 1, 0, 0);
-	modelMatrix_ = DirectX::XMMatrixRotationAxis(rotationAxis, angle);
-	modelMatrix_ = DirectX::XMMatrixMultiply(translationMatrix,modelMatrix_);
-	//modelMatrix_ = translationMatrix;
+	CenterMesh();
+	ScaleMesh();
 
 	DirectX::XMStoreFloat4(&cameraPos_, DirectX::XMVectorAdd(DirectX::XMVectorScale(DirectX::XMLoadFloat4(&cameraVelocity_), deltaTime),DirectX::XMLoadFloat4(&cameraPos_)));
 	const DirectX::XMVECTOR eyePostition = DirectX::XMLoadFloat4(&cameraPos_);
@@ -207,6 +199,12 @@ void MeshViewer::OnUpdate(double deltaTime, double totalTime){
 
 	float aspectRatio = GetClientWidth()/static_cast<float>(GetClientHeight());
 	projectionMatrix_ = DirectX::XMMatrixPerspectiveFovLH(DirectX::XMConvertToRadians(45.0f), aspectRatio, 0.1f, 100.0f);
+
+
+	float angle = static_cast<float>(totalTime*0.0/200.0);
+	const DirectX::XMVECTOR rotationAxis = DirectX::XMVectorSet(0, 1, 0, 0);
+	DirectX::XMMATRIX rotationMatrix = DirectX::XMMatrixRotationAxis(rotationAxis, angle);
+	modelMatrix_ = DirectX::XMMatrixMultiply(modelMatrix_, rotationMatrix);
 
 
 }
@@ -528,7 +526,61 @@ void MeshViewer::RecordDebugRenderPass(ID3D12GraphicsCommandList2 *pCommandList)
 
 }
 
-void MeshViewer::SreenSpaceSize(const AABB &boundingBox) const{
+void MeshViewer::ScaleMesh(){
+	using namespace DirectX;
+	AABB boundingBox = meshOffsetData_.at(meshIdx).boundingBox;
+	struct BoundingBox2D{
+		XMFLOAT2 max;
+		XMFLOAT2 min;
+	};
+	std::vector<VertexPos> bbVertices;
+	boundingBox.Vertices(&bbVertices);
+	XMMATRIX mvp = XMMatrixMultiply(modelMatrix_, viewMatrix_);
+	mvp = XMMatrixMultiply(mvp, projectionMatrix_);
+	BoundingBox2D bbScreen = {XMFLOAT2(-FLT_MAX,-FLT_MAX),XMFLOAT2(FLT_MAX,FLT_MAX)};
 	
-
+	for(auto iter = bbVertices.begin(); iter!=bbVertices.end(); ++iter){
+		XMFLOAT4 vert = {iter->vert.x,iter->vert.y,iter->vert.z, 1.0f};
+		XMFLOAT4 ssVert;
+		XMStoreFloat4(&ssVert ,XMVector4Transform(XMLoadFloat4(&vert), mvp));
+		XMFLOAT2 ssPos = {ssVert.x/ssVert.w,ssVert.y/ssVert.w};
+		bbScreen.min = {std::fminf(bbScreen.min.x, ssPos.x),std::fminf(bbScreen.min.y, ssPos.y)};
+		bbScreen.max = {std::fmaxf(bbScreen.max.x, ssPos.x),std::fmaxf(bbScreen.max.y, ssPos.y)};
+	}
+	XMFLOAT2 len;
+	XMStoreFloat2(&len,XMVector2Length(XMVectorSubtract(XMLoadFloat2(&bbScreen.max), XMLoadFloat2(&bbScreen.min))));
+	float scaleFactor = 1/len.x;
+	XMMATRIX scaleMatrix = XMMatrixScaling(scaleFactor,scaleFactor,scaleFactor);
+	modelMatrix_ = XMMatrixMultiply(modelMatrix_, scaleMatrix);
 }
+
+void MeshViewer::CenterMesh(){
+	using namespace DirectX;
+	enum Direction:uint8_t{
+		X=0,
+		Y=1,
+		Z=2
+	};
+	AABB boundingBox = meshOffsetData_.at(meshIdx).boundingBox;
+	XMFLOAT3 bbCenter;
+	boundingBox.Center(&bbCenter);
+	XMMATRIX translationMatrix= XMMatrixTranslationFromVector(XMVectorNegate(XMLoadFloat3(&bbCenter)));
+	modelMatrix_ = translationMatrix;
+
+	//XMFLOAT3 bbEdgeLength;
+	//XMStoreFloat3(&bbEdgeLength, XMVectorSubtract(XMLoadFloat3(&boundingBox.max), XMLoadFloat3(&boundingBox.min)));
+
+	//uint8_t rotationAxis = Direction::X;
+	//if(bbEdgeLength.y<bbEdgeLength.z&&bbEdgeLength.y<bbEdgeLength.x) rotationAxis  =Direction::Y;
+	//if(bbEdgeLength.z<bbEdgeLength.x&&bbEdgeLength.z<bbEdgeLength.y) rotationAxis = Direction::Z;
+	//XMMATRIX rotationMatrix = XMMatrixIdentity();
+	//if(rotationAxis==Direction::X){
+	//	rotationMatrix=XMMatrixRotationX(90);
+	//}
+	//if(rotationAxis==Direction::Y){
+	//	rotationMatrix = XMMatrixRotationY(90);
+	//}
+
+	//modelMatrix_ = XMMatrixMultiply(modelMatrix_, rotationMatrix);
+}
+
