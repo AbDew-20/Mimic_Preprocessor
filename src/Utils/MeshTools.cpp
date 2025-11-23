@@ -91,6 +91,7 @@ float MeshTools::GetOccluderPotential(const std::vector<AABB> &minBoundingBoxDat
 	float meshSurfaceArea = 0.0f;
 	AABB meshBoundingBox = maxBoundingBoxData.back();
 	float meshVolume = meshBoundingBox.GetAABBVolume();
+	meshVolume = (meshVolume>0) ? meshVolume : 1.0f;
 	for(size_t i = 0; i<minBoundingBoxData.size()-1; ++i){
 		minInteriorVolume += minBoundingBoxData.at(i).GetAABBVolume();
 	}

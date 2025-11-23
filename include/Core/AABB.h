@@ -46,4 +46,11 @@ struct AABB{
 			pVerts->push_back(vert);
 		}
 	}
+
+	float GetDiagonal()const{
+		using namespace DirectX;
+		XMFLOAT3 len;
+		XMStoreFloat3(&len, XMVector3Length(XMVectorSubtract(XMLoadFloat3(&max), XMLoadFloat3(&min))));
+		return len.x;
+	}
 };

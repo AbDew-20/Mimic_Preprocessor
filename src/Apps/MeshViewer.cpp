@@ -4,6 +4,7 @@
 #include <Core/CommandQueue.h>
 #include <Utils/ScopedTimer.h>
 #include <Utils/MeshTools.h>
+#include <Utils/DataAnalyzer.h>
 
 
 
@@ -37,24 +38,45 @@ bool MeshViewer::LoadContent(){
 	}
 	DebugPrint("Triangles: %i\n", indexData.size());
 	//DebugPrint("LOD Triangles: %i\n", lodData.size());
-
+	size_t listSize = meshOffsetData_.size();
+	DataAnalyzer analyzer(listSize);
+	std::vector<std::string_view> itemList(listSize);
+	std::vector<float> lengthScaleData(listSize);
+	std::vector<float> occluderScoreData(listSize);
+	std::vector<float> triangleNumData(listSize);
+ 
 	std::vector<AABB> maxBoundingBoxData = {};
 	std::vector<AABB> minBoundingBoxData = {};
-	std::vector<VertexPos> indexedBBVertexData = {};
-	std::vector<uint32_t> bbIndexData = {};
-	for(auto iter = meshOffsetData_.begin(); iter!=meshOffsetData_.end();++iter){
+	//std::vector<VertexPos> indexedBBVertexData = {};
+	//std::vector<uint32_t> bbIndexData = {};
+	for(size_t idx=0; idx<meshOffsetData_.size(); ++idx){
 		maxBoundingBoxData.clear();
 		minBoundingBoxData.clear();
-		double exp = std::log2((double)iter->numIndices/30.0);
+		MeshInfo *pMeshInfo = &meshOffsetData_[idx];
+		double exp = std::log2((double)pMeshInfo->numIndices/30.0);
 		size_t maxLimit = (size_t)std::pow(2, (size_t)exp);
 		size_t minLimit = (size_t)std::pow(2, (size_t)(exp/2));
-		MeshTools::GenerateAABBData(indexedVertexData.data(), indexedVertexData.size(), indexData.data()+iter->indexOffset, iter->numIndices, maxLimit, &maxBoundingBoxData);
-		MeshTools::GenerateAABBData(indexedVertexData.data(), indexedVertexData.size(), indexData.data()+iter->indexOffset, iter->numIndices, minLimit, &minBoundingBoxData);
+		MeshTools::GenerateAABBData(indexedVertexData.data(), indexedVertexData.size(), indexData.data()+pMeshInfo->indexOffset, pMeshInfo->numIndices, maxLimit, &maxBoundingBoxData);
+		MeshTools::GenerateAABBData(indexedVertexData.data(), indexedVertexData.size(), indexData.data()+pMeshInfo->indexOffset, pMeshInfo->numIndices, minLimit, &minBoundingBoxData);
 		//MeshTools::GenerateAABBWireFrame(maxBoundingBoxData,indexedBBVertexData, bbIndexData);
-		iter->occluderScore = MeshTools::GetOccluderPotential(minBoundingBoxData, maxBoundingBoxData, iter->numIndices/3);
-		iter->boundingBox = maxBoundingBoxData.back();
-		DebugPrint("Occluder Potential: %f\n", iter->occluderScore);
+		float occluderScore = MeshTools::GetOccluderPotential(minBoundingBoxData, maxBoundingBoxData, pMeshInfo->numIndices/3);
+		AABB boundingBox = maxBoundingBoxData.back();
+		pMeshInfo->occluderScore = occluderScore;
+		pMeshInfo->boundingBox = boundingBox;
+		DebugPrint("Occluder Potential: %f\n", pMeshInfo->occluderScore);	
+		itemList[idx] = pMeshInfo->meshId;
+		lengthScaleData[idx] = boundingBox.GetDiagonal();
+		occluderScoreData[idx] = (occluderScore)? occluderScore*boundingBox.GetAABBSurfaceArea() : 0.0f;
+		triangleNumData[idx] = pMeshInfo->numIndices/3;
 	}
+
+	analyzer.SetItemList(std::move(itemList));
+	analyzer.AddDataSeries(std::string("Length Scale"), std::move(lengthScaleData));
+	analyzer.AddDataSeries(std::string("Occluder Score"), std::move(occluderScoreData));
+	analyzer.AddDataSeries(std::string("Triangle Number"), std::move(triangleNumData));
+
+	AnalyzeSceneData(analyzer);
+
 
 	ID3D12Device2 *pDevice = pApp_->GetDevice(); 
 
@@ -125,22 +147,22 @@ void MeshViewer::OnKeyPress(KeyCodes key, bool shift, bool ctl, bool alt){
 		boundingBoxVisible_ = !boundingBoxVisible_;
 		break;
 	case KeyCodes::Up:
-		if(meshIdx==meshOffsetData_.size()-1){
+		if(meshIdx==occluderRankingData_.size()-1){
 			meshIdx = 0;
 		}
 		else{
 			meshIdx++;
 		}
-		DebugPrint("Occluder Score: %f\n", meshOffsetData_.at(meshIdx).occluderScore);
+		DebugPrint("Occluder Score: %f\n", occluderRankingData_.at(meshIdx).first);
 		break;
 	case KeyCodes::Down:
 		if(meshIdx==0){
-			meshIdx = meshOffsetData_.size()-1;
+			meshIdx = occluderRankingData_.size()-1;
 		}
 		else{
 			meshIdx--;
 		}
-		DebugPrint("Occluder Score: %f\n", meshOffsetData_.at(meshIdx).occluderScore);
+		DebugPrint("Occluder Score: %f\n", occluderRankingData_.at(meshIdx).first);
 		break;
 	case KeyCodes::Z:
 		zoom_ *= 0.5;
@@ -206,7 +228,6 @@ void MeshViewer::OnUpdate(double deltaTime, double totalTime){
 	DirectX::XMMATRIX rotationMatrix = DirectX::XMMatrixRotationAxis(rotationAxis, angle);
 	modelMatrix_ = DirectX::XMMatrixMultiply(modelMatrix_, rotationMatrix);
 
-
 }
 
 
@@ -241,7 +262,7 @@ void MeshViewer::OnRender(double deltaTime, double totalTime){
 	pCommandList->SetGraphicsRoot32BitConstants(0, sizeof(DirectX::XMMATRIX)/4, &mvpMatrix,0);
 	pCommandList->SetGraphicsRoot32BitConstants(0, sizeof(DirectX::XMMATRIX)/4, &modelMatrix_,16);
 
-	RecordMainRenderPass(pCommandList, meshOffsetData_.at(meshIdx));
+	RecordMainRenderPass(pCommandList, meshOffsetData_.at(occluderRankingData_.at(meshIdx).second));
 	if(boundingBoxVisible_){
 		//RecordDebugRenderPass(pCommandList);
 	}
@@ -528,7 +549,7 @@ void MeshViewer::RecordDebugRenderPass(ID3D12GraphicsCommandList2 *pCommandList)
 
 void MeshViewer::ScaleMesh(){
 	using namespace DirectX;
-	AABB boundingBox = meshOffsetData_.at(meshIdx).boundingBox;
+	AABB boundingBox = meshOffsetData_.at(occluderRankingData_.at(meshIdx).second).boundingBox;
 	struct BoundingBox2D{
 		XMFLOAT2 max;
 		XMFLOAT2 min;
@@ -561,7 +582,7 @@ void MeshViewer::CenterMesh(){
 		Y=1,
 		Z=2
 	};
-	AABB boundingBox = meshOffsetData_.at(meshIdx).boundingBox;
+	AABB boundingBox = meshOffsetData_.at(occluderRankingData_.at(meshIdx).second).boundingBox;
 	XMFLOAT3 bbCenter;
 	boundingBox.Center(&bbCenter);
 	XMMATRIX translationMatrix= XMMatrixTranslationFromVector(XMVectorNegate(XMLoadFloat3(&bbCenter)));
@@ -584,3 +605,9 @@ void MeshViewer::CenterMesh(){
 	//modelMatrix_ = XMMatrixMultiply(modelMatrix_, rotationMatrix);
 }
 
+void MeshViewer::AnalyzeSceneData(DataAnalyzer &analyzer){
+	analyzer.SortBySeries(std::string("Length Scale"));
+	analyzer.Truncate(1.8f, FLT_MAX);
+	analyzer.SortBySeries(std::string("Occluder Score"));
+	analyzer.ReturnCurrentSeries(&occluderRankingData_);
+}

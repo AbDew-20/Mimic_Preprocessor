@@ -8,6 +8,7 @@
 
 class Application;
 class CommandQueue;
+class DataAnalyzer;
 struct MeshInfo;
 class MeshViewer : public Game{
 	
@@ -52,6 +53,8 @@ private:
 	void CenterMesh();
 	void ScaleMesh();
 
+	void AnalyzeSceneData(DataAnalyzer &analyzer);
+
 	inline constexpr float GetCameraSpeed(){ return 1.0f; }
 
 
@@ -59,6 +62,7 @@ private:
 	uint64_t fenceValues_[Window::kBufferCount] = {};
 	const std::string filePath_;
 	std::vector<MeshInfo> meshOffsetData_;
+	std::vector<std::pair<float, size_t>> occluderRankingData_;
 
 	ID3D12Resource *pDepthBuffer_;
 	ID3D12DescriptorHeap *pDsvHeap_;

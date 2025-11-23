@@ -35,7 +35,7 @@ public:
 	D3D12_CPU_DESCRIPTOR_HANDLE GetCurrentRenderTargetView() const;
 	UINT Present();
 	void Init();
-	constexpr UINT GetMaxBufferCount(){ return 3; }
+	inline constexpr UINT GetMaxBufferCount(){ return 3; }
 protected:
 	friend LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
 	friend class Application;
