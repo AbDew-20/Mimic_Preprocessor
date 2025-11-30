@@ -33,12 +33,46 @@ bool MeshViewer::LoadContent(){
 		ScopedTimer timer("File Parse");
 		FileTools::Obj obj(filePath_);
 		obj.MapFile();
-		obj.ParseObjFile(&indexedVertexData, &indexData, &materialFile, &meshOffsetData_);
+		obj.ParseObjFile(&indexedVertexData, &indexData, &materialFile, &subMeshData_);
 		obj.CloseFile();
 	}
 	DebugPrint("Triangles: %i\n", indexData.size());
 	//DebugPrint("LOD Triangles: %i\n", lodData.size());
-	size_t listSize = meshOffsetData_.size();
+
+	std::string currObject = "";
+	std::string currGroup = "";
+	std::string currMaterial = "";
+	SubMesh temp;
+	for(uint32_t i = 0; i<subMeshData_.size(); ++i){
+		temp = subMeshData_[i];
+		if(temp.objName!=currObject){
+			occluderOffsetData_.push_back({temp.objName, temp.indexOffset, temp.numIndices, temp.numIndices,  temp.vertexOffset, temp.numVertices,temp.numVertices, 0.0f, AABB()});
+			currObject = temp.objName;
+			continue;
+		}
+		if(temp.groupName!=currGroup&&temp.objName==""){
+			occluderOffsetData_.push_back({temp.groupName, temp.indexOffset, temp.numIndices, temp.numIndices,  temp.vertexOffset, temp.numVertices,temp.numVertices, 0.0f, AABB()});
+			currGroup = temp.groupName;
+			continue;
+		}
+		if(temp.material!=currMaterial&&temp.objName==""&&temp.groupName==""){
+			occluderOffsetData_.push_back({temp.material, temp.indexOffset, temp.numIndices, temp.numIndices,  temp.vertexOffset, temp.numVertices,temp.numVertices, 0.0f, AABB()});
+			currMaterial = temp.material;
+			continue;
+		}
+		occluderOffsetData_.back().numIndicesTotal += temp.numIndices;
+		occluderOffsetData_.back().numVerticesTotal += temp.numVertices;
+		if(!temp.alphaTested){
+			occluderOffsetData_.back().numIndices += temp.numIndices;
+			occluderOffsetData_.back().numVertices += temp.numVertices;
+		}
+	
+	}
+
+
+
+
+	size_t listSize = occluderOffsetData_.size();
 	DataAnalyzer analyzer(listSize);
 	std::vector<std::string_view> itemList(listSize);
 	std::vector<float> lengthScaleData(listSize);
@@ -49,10 +83,10 @@ bool MeshViewer::LoadContent(){
 	std::vector<AABB> minBoundingBoxData = {};
 	//std::vector<VertexPos> indexedBBVertexData = {};
 	//std::vector<uint32_t> bbIndexData = {};
-	for(size_t idx=0; idx<meshOffsetData_.size(); ++idx){
+	for(size_t idx=0; idx<occluderOffsetData_.size(); ++idx){
 		maxBoundingBoxData.clear();
 		minBoundingBoxData.clear();
-		MeshInfo *pMeshInfo = &meshOffsetData_[idx];
+		OccluderMesh *pMeshInfo = &occluderOffsetData_[idx];
 		double exp = std::log2((double)pMeshInfo->numIndices/30.0);
 		size_t maxLimit = (size_t)std::pow(2, (size_t)exp);
 		size_t minLimit = (size_t)std::pow(2, (size_t)(exp/2));
@@ -262,7 +296,7 @@ void MeshViewer::OnRender(double deltaTime, double totalTime){
 	pCommandList->SetGraphicsRoot32BitConstants(0, sizeof(DirectX::XMMATRIX)/4, &mvpMatrix,0);
 	pCommandList->SetGraphicsRoot32BitConstants(0, sizeof(DirectX::XMMATRIX)/4, &modelMatrix_,16);
 
-	RecordMainRenderPass(pCommandList, meshOffsetData_.at(occluderRankingData_.at(meshIdx).second));
+	RecordMainRenderPass(pCommandList, occluderOffsetData_.at(occluderRankingData_.at(meshIdx).second));
 	if(boundingBoxVisible_){
 		//RecordDebugRenderPass(pCommandList);
 	}
@@ -531,12 +565,12 @@ void MeshViewer::CreateDebugPassPipelineState(){
 	ThrowIfFailed(pDevice->CreatePipelineState(&pipelineStateStreamDesc, IID_ID3D12PipelineState, reinterpret_cast<void **>(&pPipelineState_[1])));
 
 }
-void MeshViewer::RecordMainRenderPass(ID3D12GraphicsCommandList2 *pCommandList, MeshInfo &meshInfo) const{
+void MeshViewer::RecordMainRenderPass(ID3D12GraphicsCommandList2 *pCommandList, OccluderMesh &meshInfo) const{
 	pCommandList->SetPipelineState(pPipelineState_[0]);
 	pCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	pCommandList->IASetVertexBuffers(0,1, &vertexBufferView_[0]);
 	pCommandList->IASetIndexBuffer(&indexBufferView_[0]);
-	pCommandList->DrawIndexedInstanced((UINT)meshInfo.numIndices, 1, meshInfo.indexOffset, 0, 0);
+	pCommandList->DrawIndexedInstanced((UINT)meshInfo.numIndicesTotal, 1, meshInfo.indexOffset, 0, 0);
 }
 void MeshViewer::RecordDebugRenderPass(ID3D12GraphicsCommandList2 *pCommandList) const{
 	pCommandList->SetPipelineState(pPipelineState_[1]);
@@ -549,7 +583,7 @@ void MeshViewer::RecordDebugRenderPass(ID3D12GraphicsCommandList2 *pCommandList)
 
 void MeshViewer::ScaleMesh(){
 	using namespace DirectX;
-	AABB boundingBox = meshOffsetData_.at(occluderRankingData_.at(meshIdx).second).boundingBox;
+	AABB boundingBox = occluderOffsetData_.at(occluderRankingData_.at(meshIdx).second).boundingBox;
 	struct BoundingBox2D{
 		XMFLOAT2 max;
 		XMFLOAT2 min;
@@ -582,7 +616,7 @@ void MeshViewer::CenterMesh(){
 		Y=1,
 		Z=2
 	};
-	AABB boundingBox = meshOffsetData_.at(occluderRankingData_.at(meshIdx).second).boundingBox;
+	AABB boundingBox = occluderOffsetData_.at(occluderRankingData_.at(meshIdx).second).boundingBox;
 	XMFLOAT3 bbCenter;
 	boundingBox.Center(&bbCenter);
 	XMMATRIX translationMatrix= XMMatrixTranslationFromVector(XMVectorNegate(XMLoadFloat3(&bbCenter)));
@@ -606,8 +640,8 @@ void MeshViewer::CenterMesh(){
 }
 
 void MeshViewer::AnalyzeSceneData(DataAnalyzer &analyzer){
-	analyzer.SortBySeries(std::string("Length Scale"));
-	analyzer.Truncate(1.8f, FLT_MAX);
+	//analyzer.SortBySeries(std::string("Length Scale"));
+	//analyzer.Truncate(1.8f, FLT_MAX);
 	analyzer.SortBySeries(std::string("Occluder Score"));
 	analyzer.ReturnCurrentSeries(&occluderRankingData_);
 }

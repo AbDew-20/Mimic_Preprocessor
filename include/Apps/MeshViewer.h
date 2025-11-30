@@ -9,7 +9,19 @@
 class Application;
 class CommandQueue;
 class DataAnalyzer;
-struct MeshInfo;
+struct SubMesh;
+
+struct OccluderMesh{
+	std::string meshId;
+	uint64_t indexOffset;
+	uint64_t numIndices;
+	uint64_t numIndicesTotal;
+	uint64_t vertexOffset;
+	uint64_t numVertices;
+	uint64_t numVerticesTotal;
+	float occluderScore;
+	AABB boundingBox;
+};
 class MeshViewer : public Game{
 	
 public:
@@ -41,7 +53,7 @@ private:
 		const std::vector<uint32_t> &indexData);
 	void CreateMainPassPipelineState();
 
-	void RecordMainRenderPass(ID3D12GraphicsCommandList2 *pCommandList, MeshInfo &meshInfo) const;
+	void RecordMainRenderPass(ID3D12GraphicsCommandList2 *pCommandList, OccluderMesh &meshInfo) const;
 	void RecordDebugRenderPass(ID3D12GraphicsCommandList2 *pCommandList) const;
 
 	void UploadDebugPassResources(
@@ -61,7 +73,9 @@ private:
 	Application *pApp_;
 	uint64_t fenceValues_[Window::kBufferCount] = {};
 	const std::string filePath_;
-	std::vector<MeshInfo> meshOffsetData_;
+	std::vector<SubMesh> subMeshData_;
+
+	std::vector<OccluderMesh> occluderOffsetData_;
 	std::vector<std::pair<float, size_t>> occluderRankingData_;
 
 	ID3D12Resource *pDepthBuffer_;
