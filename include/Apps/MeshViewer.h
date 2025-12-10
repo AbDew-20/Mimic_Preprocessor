@@ -4,11 +4,11 @@
 #include <DirectXMath.h>
 #include <Core/Window.h>
 #include <Utils/FileTools.h>
+#include <Utils/DataAnalysis.h>
 
 
 class Application;
 class CommandQueue;
-class DataAnalyzer;
 struct SubMesh;
 
 struct OccluderMesh{
@@ -65,7 +65,7 @@ private:
 	void CenterMesh();
 	void ScaleMesh();
 
-	void AnalyzeSceneData(DataAnalyzer &analyzer);
+	void AnalyzeSceneData(DataAnalysis::DataAnalyzer &analyzer);
 
 	inline constexpr float GetCameraSpeed(){ return 1.0f; }
 

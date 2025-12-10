@@ -5,6 +5,7 @@
 #include <string_view>
 #include <Core/VertexTypes.h>
 #include <Core/AABB.h>
+#include <unordered_map>
 
 
 struct MeshInfo{
@@ -26,6 +27,10 @@ struct SubMesh{
 	uint64_t numVertices;
 	bool alphaTested;
 };
+
+struct MaterialInfo{
+	bool alphaTested;
+};
 namespace FileTools{
 	void LoadFileToBuffer(const std::string &filePath, std::vector<char> *pBuffer);
 
@@ -34,7 +39,12 @@ namespace FileTools{
 		Obj(const std::string &filePath);
 
 		void MapFile();
-		void ParseObjFile(std::vector<VertexPosTexNorm> *pIndexedVertexBuffer, std::vector<uint32_t> *pIndexBuffer, std::string *pMaterialFile, std::vector<SubMesh> *pMeshOffsetData);
+		void ParseObjFile(
+			std::vector<VertexPosTexNorm> *pIndexedVertexBuffer,
+			std::vector<uint32_t> *pIndexBuffer,
+			std::vector<SubMesh> *pMeshOffsetData,
+			std::vector<MaterialInfo> *pMatierialInfoData,
+			std::unordered_map<std::string, size_t> *pMaterialIdMap );
 		void CloseFile();
 		
 
@@ -67,7 +77,8 @@ namespace FileTools{
 		SIZE_T pageSize_ ;
 		uint64_t fileSize_;
 	 	
-		std::string fileName_;
+		std::string filePath_;
+		std::string directory_;
 		HANDLE hFile_;
 		HANDLE hMap_;
 		LPVOID pView_;
@@ -75,6 +86,18 @@ namespace FileTools{
 
 
 
+	};
+	class Mtl{
+	public:
+		Mtl(const std::string mtlFile, const std::string directory);
+		void ParseMtlFile(std::vector<MaterialInfo> *pMatierialInfoData, std::unordered_map<std::string, size_t> *pMaterialIdMap);
+	protected:
+
+	private:
+		struct MaterialTextures;
+		void GenerateMaterialData(const MaterialTextures &texturePaths, MaterialInfo *pMaterialInfo);
+		std::string fileName_;
+		std::string currentDir_;
 	};
 
 }

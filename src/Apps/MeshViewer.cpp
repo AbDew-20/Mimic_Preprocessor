@@ -4,7 +4,6 @@
 #include <Core/CommandQueue.h>
 #include <Utils/ScopedTimer.h>
 #include <Utils/MeshTools.h>
-#include <Utils/DataAnalyzer.h>
 
 
 
@@ -27,13 +26,13 @@ MeshViewer::MeshViewer(Application *pApp, const std::wstring &name, int width, i
 bool MeshViewer::LoadContent(){
 	std::vector<VertexPosTexNorm> indexedVertexData = {};
 	std::vector<uint32_t> indexData = {};
-	std::string materialFile;
-	
+	std::vector<MaterialInfo> materialInfoData;
+	std::unordered_map<std::string, size_t> materialIdMap;
 	{
 		ScopedTimer timer("File Parse");
 		FileTools::Obj obj(filePath_);
 		obj.MapFile();
-		obj.ParseObjFile(&indexedVertexData, &indexData, &materialFile, &subMeshData_);
+		obj.ParseObjFile(&indexedVertexData, &indexData, &subMeshData_, &materialInfoData, &materialIdMap);
 		obj.CloseFile();
 	}
 	DebugPrint("Triangles: %i\n", indexData.size());
@@ -73,7 +72,7 @@ bool MeshViewer::LoadContent(){
 
 
 	size_t listSize = occluderOffsetData_.size();
-	DataAnalyzer analyzer(listSize);
+	DataAnalysis::DataAnalyzer analyzer(listSize);
 	std::vector<std::string_view> itemList(listSize);
 	std::vector<float> lengthScaleData(listSize);
 	std::vector<float> occluderScoreData(listSize);
@@ -89,19 +88,20 @@ bool MeshViewer::LoadContent(){
 		OccluderMesh *pMeshInfo = &occluderOffsetData_[idx];
 		double exp = std::log2((double)pMeshInfo->numIndices/30.0);
 		size_t maxLimit = (size_t)std::pow(2, (size_t)exp);
-		size_t minLimit = (size_t)std::pow(2, (size_t)(exp/2));
+		size_t minLimit = (size_t)std::pow(2, (size_t)(exp/4));
 		MeshTools::GenerateAABBData(indexedVertexData.data(), indexedVertexData.size(), indexData.data()+pMeshInfo->indexOffset, pMeshInfo->numIndices, maxLimit, &maxBoundingBoxData);
 		MeshTools::GenerateAABBData(indexedVertexData.data(), indexedVertexData.size(), indexData.data()+pMeshInfo->indexOffset, pMeshInfo->numIndices, minLimit, &minBoundingBoxData);
 		//MeshTools::GenerateAABBWireFrame(maxBoundingBoxData,indexedBBVertexData, bbIndexData);
-		float occluderScore = MeshTools::GetOccluderPotential(minBoundingBoxData, maxBoundingBoxData, pMeshInfo->numIndices/3);
+		float occluderScore = MeshTools::GetOccluderPotential(minBoundingBoxData, maxBoundingBoxData, pMeshInfo->numIndicesTotal/3);
 		AABB boundingBox = maxBoundingBoxData.back();
 		pMeshInfo->occluderScore = occluderScore;
 		pMeshInfo->boundingBox = boundingBox;
-		DebugPrint("Occluder Potential: %f\n", pMeshInfo->occluderScore);	
+		//DebugPrint("Occluder Potential: %f\n", pMeshInfo->occluderScore);	
 		itemList[idx] = pMeshInfo->meshId;
 		lengthScaleData[idx] = boundingBox.GetDiagonal();
 		occluderScoreData[idx] = (occluderScore)? occluderScore*boundingBox.GetAABBSurfaceArea() : 0.0f;
-		triangleNumData[idx] = pMeshInfo->numIndices/3;
+		triangleNumData[idx] = pMeshInfo->numIndicesTotal/3;
+		DebugPrint(pMeshInfo->meshId.c_str(), 0);
 	}
 
 	analyzer.SetItemList(std::move(itemList));
@@ -639,7 +639,7 @@ void MeshViewer::CenterMesh(){
 	//modelMatrix_ = XMMatrixMultiply(modelMatrix_, rotationMatrix);
 }
 
-void MeshViewer::AnalyzeSceneData(DataAnalyzer &analyzer){
+void MeshViewer::AnalyzeSceneData(DataAnalysis::DataAnalyzer &analyzer){
 	//analyzer.SortBySeries(std::string("Length Scale"));
 	//analyzer.Truncate(1.8f, FLT_MAX);
 	analyzer.SortBySeries(std::string("Occluder Score"));

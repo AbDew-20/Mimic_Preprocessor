@@ -3,6 +3,7 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <exception>
+#include <string>
 
 inline void ThrowIfFailed(HRESULT hr){
 	if(FAILED(hr)){
@@ -28,4 +29,9 @@ inline void DebugPrint(const char* format, T payload){
 
 }
 
+inline void StringToWString(const std::string &string, std::wstring *pWstring){
+	const int size = ::MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED,string.data(),string.size(), nullptr , 0);
+	pWstring->resize(size);
+	::MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED,string.data(),string.size(), pWstring->data(), size);
+}
 
