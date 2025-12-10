@@ -123,7 +123,7 @@ FileTools::Obj::Obj(const std::string &filePath) :
 	allocGranularity_ = sysInfo.dwAllocationGranularity;
 	pageSize_ = allocGranularity_*512;
 	std::vector<std::string_view> tokenList;
-	ParseString(filePath_, '/', &tokenList);
+	ParseString(filePath_, '\\', &tokenList);
 	for(int i = 0; i<tokenList.size()-1; ++i){
 		directory_.append(tokenList[i]);
 		directory_.append("/");

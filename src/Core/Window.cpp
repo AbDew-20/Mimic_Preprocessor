@@ -2,7 +2,7 @@
 #include <Core/Application.h>
 #include <Core/PCH.h>
 #include <Core/Game.h>
-Window::Window(Application *app, HWND hwnd, const std::wstring &windowName, int clientWidth, int clientHeight, bool vSync) :
+Window::Window(Application *pApp, HWND hwnd, const std::wstring &windowName, int clientWidth, int clientHeight, bool vSync) :
 	hWnd_(hwnd),
 	windowName_(windowName),
 	clientHeight_(clientHeight),
@@ -10,7 +10,7 @@ Window::Window(Application *app, HWND hwnd, const std::wstring &windowName, int 
 	vSync_(vSync),
 	fullscreen_(false),
 	frameCounter_(0),
-	app_(app),
+	pApp_(pApp),
 	currentBackBufferIndex_(0)
 	{}
 Window &Window::operator= (Window &&other) noexcept{
@@ -21,16 +21,16 @@ Window &Window::operator= (Window &&other) noexcept{
 	vSync_ = other.vSync_;
 	fullscreen_ = other.fullscreen_;
 	frameCounter_ = other.frameCounter_;
-	app_ = other.app_;
+	pApp_ = other.pApp_;
 	return *this;
 
 }
 
 void Window::Init(){
-	isTearingSupported_ = app_->IsTearingSupported();
+	isTearingSupported_ = pApp_->IsTearingSupported();
 	pDxgiSwapChain_ = CreateSwapChain();
-	pD3d12RTVDescriptorHeap_ = app_->CreateDescriptorHeap(kBufferCount, D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-	rtvDescriptorSize_ = app_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+	pD3d12RTVDescriptorHeap_ = pApp_->CreateDescriptorHeap(kBufferCount, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE);
+	rtvDescriptorSize_ = pApp_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
 	UpdateRenderTargetViews();
 }
@@ -48,7 +48,7 @@ void Window::OnResize(int clientHeight, int clientWidth){
 		clientHeight_ = std::max(1, clientHeight);
 		clientWidth_ = std::max(1, clientWidth);
 
-		app_->Flush();
+		pApp_->Flush();
 
 		for(int i = 0; i<kBufferCount; i++){
 			SafeRelease(pD3d12BackBuffers_[i]);
@@ -96,7 +96,7 @@ IDXGISwapChain4 *Window::CreateSwapChain(){
 	swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
 	swapChainDesc.Flags = isTearingSupported_ ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0;
 	IDXGISwapChain1 *pSwapChain1;
-	ID3D12CommandQueue *commandQueue = app_->GetCommandQueue()->GetCommandQueue();
+	ID3D12CommandQueue *commandQueue = pApp_->GetCommandQueue()->GetCommandQueue();
 	ThrowIfFailed(pDxgiFactory4->CreateSwapChainForHwnd(commandQueue, hWnd_, &swapChainDesc, nullptr, nullptr, &pSwapChain1)); 
 	ThrowIfFailed(pDxgiFactory4->MakeWindowAssociation(hWnd_, DXGI_MWA_NO_ALT_ENTER));
 	ThrowIfFailed(pSwapChain1->QueryInterface(IID_IDXGISwapChain4, reinterpret_cast<void **>(&pDxgiSwapChain4)));
@@ -110,7 +110,7 @@ IDXGISwapChain4 *Window::CreateSwapChain(){
 
 
 void Window::UpdateRenderTargetViews(){ 
-	ID3D12Device2 *pDevice = app_->GetDevice();
+	ID3D12Device2 *pDevice = pApp_->GetDevice();
 	CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(pD3d12RTVDescriptorHeap_->GetCPUDescriptorHandleForHeapStart());
 	for(int i = 0; i<kBufferCount; i++){
 		ID3D12Resource *pBackBuffer;

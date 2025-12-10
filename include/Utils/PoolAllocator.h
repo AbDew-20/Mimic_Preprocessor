@@ -2,7 +2,8 @@
 #include <vector>
 #include <numeric>
 #include<utility>
-template <class C> class PoolAllocator{
+template <class C> 
+class PoolAllocator{
 public:
 	PoolAllocator(size_t poolSize);
 	C *Insert(C &element);

@@ -14,7 +14,7 @@ inline void ThrowIfFailed(HRESULT hr){
 
 template<typename T>
 auto SafeRelease(T *&ptr)->decltype(ptr->Release(),void()){
-	if(ptr){
+	if(ptr!=nullptr){
 		ptr->Release();
 		ptr = nullptr;
 	}
@@ -33,5 +33,11 @@ inline void StringToWString(const std::string &string, std::wstring *pWstring){
 	const int size = ::MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED,string.data(),string.size(), nullptr , 0);
 	pWstring->resize(size);
 	::MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED,string.data(),string.size(), pWstring->data(), size);
+}
+
+inline void WStringToString(const std::wstring &wString, std::string *pString){
+	const int size = ::WideCharToMultiByte(CP_UTF8, 0, wString.data(), wString.size(), nullptr, 0, NULL, NULL);
+	pString->resize(size);
+	::WideCharToMultiByte(CP_UTF8, 0, wString.data(), wString.size(), pString->data(), size, NULL, NULL);
 }
 

@@ -15,9 +15,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR pCmdLine, int cmdShow)
 	int ret = 0;
 	app.Init();
 	{
-		std::string filePath = RESOURCES_PATH;
-		filePath.append("EmeraldCity/emeraldCity.obj");
-		MeshViewer screen(&app, windowName, 1200, 720, filePath, true);
+		MeshViewer screen(&app, windowName, 1200, 720, true);
 		ret = app.Run(&screen);
 	}
 	app.ShutDown();

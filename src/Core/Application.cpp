@@ -2,6 +2,7 @@
 #include <Core/PCH.h>
 #include <Core/Game.h>
 #include <Core/KeyCodes.h>
+#include <backends/imgui_impl_win32.h>
 constexpr wchar_t kWindowClassName[] = L"Mimic_Engine";
 static LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
 void Application::EnableDebugLayers(){
@@ -23,7 +24,7 @@ void Application::Init(){
 	EnableDebugLayers();
 	WNDCLASSEXW windClass = {};
 	windClass.cbSize = sizeof(WNDCLASSEXW);
-	windClass.style = CS_HREDRAW||CS_VREDRAW;
+	windClass.style = CS_HREDRAW|CS_VREDRAW;
 	windClass.lpfnWndProc = &WndProc;
 	windClass.hInstance = hInstance_;
 	windClass.lpszClassName = kWindowClassName;
@@ -216,11 +217,11 @@ void Application::Flush(){
 	pComputeCommandQueue_->Flush();
 }
 
-ID3D12DescriptorHeap *Application::CreateDescriptorHeap(UINT numDescriptor, D3D12_DESCRIPTOR_HEAP_TYPE type){
+ID3D12DescriptorHeap *Application::CreateDescriptorHeap(UINT numDescriptor, D3D12_DESCRIPTOR_HEAP_TYPE type, D3D12_DESCRIPTOR_HEAP_FLAGS flags){
 	D3D12_DESCRIPTOR_HEAP_DESC desc = {};
 	desc.Type = type;
 	desc.NodeMask = 0;
-	desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+	desc.Flags = flags;
 	desc.NumDescriptors = numDescriptor;
 	ID3D12DescriptorHeap *pDescriptorHeap;
 	ThrowIfFailed(pDevice_->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&pDescriptorHeap)));
@@ -270,7 +271,7 @@ int Application::Run(Game *pGame){
 
 			::TranslateMessage(&msg);
 			::DispatchMessageW(&msg);
-		
+
 		}
 
 		if(running){
@@ -299,8 +300,11 @@ int Application::Run(Game *pGame){
 	return 0;
 }
 
-
+extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 static LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam){
+	if(ImGui_ImplWin32_WndProcHandler(hWnd, message, wParam, lParam)){
+		return TRUE;
+	}
 	Window *pWindow=nullptr;
 	Application *pApp=nullptr;
 	if(message==WM_NCCREATE){

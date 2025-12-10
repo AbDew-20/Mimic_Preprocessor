@@ -4,134 +4,52 @@
 #include <Core/CommandQueue.h>
 #include <Utils/ScopedTimer.h>
 #include <Utils/MeshTools.h>
+#include <imgui.h>
+#include <backends/imgui_impl_dx12.h>
+#include <backends/imgui_impl_win32.h>
+#include <ShObjIdl.h>
 
 
 
 
-MeshViewer::MeshViewer(Application *pApp, const std::wstring &name, int width, int height, const std::string &filePath, bool vSync) :
+MeshViewer::MeshViewer(Application *pApp, const std::wstring &name, int width, int height, bool vSync) :
 	super(pApp, name, width, height, vSync),
 	pApp_(pApp),
-	filePath_(filePath),
 	pDepthBuffer_(nullptr),
 	pDsvHeap_(nullptr),
 	cameraPos_(DirectX::XMFLOAT4(0.0f, 0.0f, -5.0f, 0.0f)),
 	cameraVelocity_(DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f)),
 	boundingBoxVisible_(false),
 	meshIdx(0),
-	zoom_(1.0f)
+	zoom_(1.0f),
+	imguiSRVAlloc_(64, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE, pApp),
+	gameState_(GameStates::SPLASH),
+	nextState_(GameStates::SPLASH)
 {
+	threadSpawned_ = false;
 }
 
 
 bool MeshViewer::LoadContent(){
-	std::vector<VertexPosTexNorm> indexedVertexData = {};
-	std::vector<uint32_t> indexData = {};
-	std::vector<MaterialInfo> materialInfoData;
-	std::unordered_map<std::string, size_t> materialIdMap;
-	{
-		ScopedTimer timer("File Parse");
-		FileTools::Obj obj(filePath_);
-		obj.MapFile();
-		obj.ParseObjFile(&indexedVertexData, &indexData, &subMeshData_, &materialInfoData, &materialIdMap);
-		obj.CloseFile();
-	}
-	DebugPrint("Triangles: %i\n", indexData.size());
-	//DebugPrint("LOD Triangles: %i\n", lodData.size());
-
-	std::string currObject = "";
-	std::string currGroup = "";
-	std::string currMaterial = "";
-	SubMesh temp;
-	for(uint32_t i = 0; i<subMeshData_.size(); ++i){
-		temp = subMeshData_[i];
-		if(temp.objName!=currObject){
-			occluderOffsetData_.push_back({temp.objName, temp.indexOffset, temp.numIndices, temp.numIndices,  temp.vertexOffset, temp.numVertices,temp.numVertices, 0.0f, AABB()});
-			currObject = temp.objName;
-			continue;
-		}
-		if(temp.groupName!=currGroup&&temp.objName==""){
-			occluderOffsetData_.push_back({temp.groupName, temp.indexOffset, temp.numIndices, temp.numIndices,  temp.vertexOffset, temp.numVertices,temp.numVertices, 0.0f, AABB()});
-			currGroup = temp.groupName;
-			continue;
-		}
-		if(temp.material!=currMaterial&&temp.objName==""&&temp.groupName==""){
-			occluderOffsetData_.push_back({temp.material, temp.indexOffset, temp.numIndices, temp.numIndices,  temp.vertexOffset, temp.numVertices,temp.numVertices, 0.0f, AABB()});
-			currMaterial = temp.material;
-			continue;
-		}
-		occluderOffsetData_.back().numIndicesTotal += temp.numIndices;
-		occluderOffsetData_.back().numVerticesTotal += temp.numVertices;
-		if(!temp.alphaTested){
-			occluderOffsetData_.back().numIndices += temp.numIndices;
-			occluderOffsetData_.back().numVertices += temp.numVertices;
-		}
-	
-	}
-
-
-
-
-	size_t listSize = occluderOffsetData_.size();
-	DataAnalysis::DataAnalyzer analyzer(listSize);
-	std::vector<std::string_view> itemList(listSize);
-	std::vector<float> lengthScaleData(listSize);
-	std::vector<float> occluderScoreData(listSize);
-	std::vector<float> triangleNumData(listSize);
- 
-	std::vector<AABB> maxBoundingBoxData = {};
-	std::vector<AABB> minBoundingBoxData = {};
-	//std::vector<VertexPos> indexedBBVertexData = {};
-	//std::vector<uint32_t> bbIndexData = {};
-	for(size_t idx=0; idx<occluderOffsetData_.size(); ++idx){
-		maxBoundingBoxData.clear();
-		minBoundingBoxData.clear();
-		OccluderMesh *pMeshInfo = &occluderOffsetData_[idx];
-		double exp = std::log2((double)pMeshInfo->numIndices/30.0);
-		size_t maxLimit = (size_t)std::pow(2, (size_t)exp);
-		size_t minLimit = (size_t)std::pow(2, (size_t)(exp/4));
-		MeshTools::GenerateAABBData(indexedVertexData.data(), indexedVertexData.size(), indexData.data()+pMeshInfo->indexOffset, pMeshInfo->numIndices, maxLimit, &maxBoundingBoxData);
-		MeshTools::GenerateAABBData(indexedVertexData.data(), indexedVertexData.size(), indexData.data()+pMeshInfo->indexOffset, pMeshInfo->numIndices, minLimit, &minBoundingBoxData);
-		//MeshTools::GenerateAABBWireFrame(maxBoundingBoxData,indexedBBVertexData, bbIndexData);
-		float occluderScore = MeshTools::GetOccluderPotential(minBoundingBoxData, maxBoundingBoxData, pMeshInfo->numIndicesTotal/3);
-		AABB boundingBox = maxBoundingBoxData.back();
-		pMeshInfo->occluderScore = occluderScore;
-		pMeshInfo->boundingBox = boundingBox;
-		//DebugPrint("Occluder Potential: %f\n", pMeshInfo->occluderScore);	
-		itemList[idx] = pMeshInfo->meshId;
-		lengthScaleData[idx] = boundingBox.GetDiagonal();
-		occluderScoreData[idx] = (occluderScore)? occluderScore*boundingBox.GetAABBSurfaceArea() : 0.0f;
-		triangleNumData[idx] = pMeshInfo->numIndicesTotal/3;
-		DebugPrint(pMeshInfo->meshId.c_str(), 0);
-	}
-
-	analyzer.SetItemList(std::move(itemList));
-	analyzer.AddDataSeries(std::string("Length Scale"), std::move(lengthScaleData));
-	analyzer.AddDataSeries(std::string("Occluder Score"), std::move(occluderScoreData));
-	analyzer.AddDataSeries(std::string("Triangle Number"), std::move(triangleNumData));
-
-	AnalyzeSceneData(analyzer);
-
 
 	ID3D12Device2 *pDevice = pApp_->GetDevice(); 
 
-	UploadMainPassResources(indexedVertexData,indexData);
 	//UploadDebugPassResources(indexedBBVertexData, bbIndexData);
 
-	D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc = {};
-	dsvHeapDesc.NumDescriptors = 1;
-	dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
-	dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-	ThrowIfFailed(pDevice->CreateDescriptorHeap(&dsvHeapDesc, IID_ID3D12DescriptorHeap, reinterpret_cast<void **>(&pDsvHeap_))); 
+
+	pDsvHeap_ = pApp_->CreateDescriptorHeap(1, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE);
 
 	CreateMainPassPipelineState();
 	CreateDebugPassPipelineState();
 	CreateDepthBuffer(GetClientWidth(), GetClientHeight()); 
-
+	
+	InitImgui();
 
 	return true;
 }
 
 void MeshViewer::UnloadContent(){
+	DestroyImgui();
 	SafeRelease(pDepthBuffer_);
 	SafeRelease(pPipelineState_[0]);
 	SafeRelease(pPipelineState_[1]);
@@ -141,6 +59,7 @@ void MeshViewer::UnloadContent(){
 	SafeRelease(pVertexBuffer_[0]);
 	//SafeRelease(pIndexBuffer_[1]);
 	//SafeRelease(pVertexBuffer_[1]);
+	imguiSRVAlloc_.Destroy();
 }
 
 void MeshViewer::OnResize(int height, int width){
@@ -233,39 +152,70 @@ void MeshViewer::OnKeyRelease(KeyCodes key, bool shift, bool ctl, bool alt){
 
 
 void MeshViewer::OnUpdate(double deltaTime, double totalTime){
-	static double elapsedSeconds =0.0;
-	static uint64_t frameCounter=0;
-	frameCounter++;
-	elapsedSeconds += deltaTime;
-	if(elapsedSeconds>1.0){
-		auto fps = frameCounter/elapsedSeconds;
-		DebugPrint("FPS: %f\n",fps);
-		elapsedSeconds = 0;
-		frameCounter = 0;
+	//static double elapsedSeconds =0.0;
+	//static uint64_t frameCounter=0;
+	//frameCounter++;
+	//elapsedSeconds += deltaTime;
+	//if(elapsedSeconds>1.0){
+	//	auto fps = frameCounter/elapsedSeconds;
+	//	DebugPrint("FPS: %f\n",fps);
+	//	elapsedSeconds = 0;
+	//	frameCounter = 0;
+	//}
+	gameState_ = nextState_;
+
+	ImGui_ImplDX12_NewFrame();
+	ImGui_ImplWin32_NewFrame();
+	ImGui::NewFrame();
+
+	switch(gameState_){
+	case GameStates::VIEWER:
+	{
+		CenterMesh();
+		ScaleMesh();
+
+		DirectX::XMStoreFloat4(&cameraPos_, DirectX::XMVectorAdd(DirectX::XMVectorScale(DirectX::XMLoadFloat4(&cameraVelocity_), deltaTime),DirectX::XMLoadFloat4(&cameraPos_)));
+		const DirectX::XMVECTOR eyePostition = DirectX::XMLoadFloat4(&cameraPos_);
+		const DirectX::XMVECTOR focusPoint = DirectX::XMVectorSet(0, 0, 0, 1);
+		const DirectX::XMVECTOR upDirection = DirectX::XMVectorSet(0, 1, 0, 0);
+		viewMatrix_ = DirectX::XMMatrixLookToLH(eyePostition, DirectX::XMVectorSet(0, 0, 1, 0), upDirection);
+
+		float aspectRatio = GetClientWidth()/static_cast<float>(GetClientHeight());
+		projectionMatrix_ = DirectX::XMMatrixPerspectiveFovLH(DirectX::XMConvertToRadians(45.0f), aspectRatio, 0.1f, 100.0f);
+
+
+		float angle = static_cast<float>(totalTime*0.0/200.0);
+		const DirectX::XMVECTOR rotationAxis = DirectX::XMVectorSet(0, 1, 0, 0);
+		DirectX::XMMATRIX rotationMatrix = DirectX::XMMatrixRotationAxis(rotationAxis, angle);
+		modelMatrix_ = DirectX::XMMatrixMultiply(modelMatrix_, rotationMatrix);
 	}
-
-	CenterMesh();
-	ScaleMesh();
-
-	DirectX::XMStoreFloat4(&cameraPos_, DirectX::XMVectorAdd(DirectX::XMVectorScale(DirectX::XMLoadFloat4(&cameraVelocity_), deltaTime),DirectX::XMLoadFloat4(&cameraPos_)));
-	const DirectX::XMVECTOR eyePostition = DirectX::XMLoadFloat4(&cameraPos_);
-	const DirectX::XMVECTOR focusPoint = DirectX::XMVectorSet(0, 0, 0, 1);
-	const DirectX::XMVECTOR upDirection = DirectX::XMVectorSet(0, 1, 0, 0);
-	viewMatrix_ = DirectX::XMMatrixLookToLH(eyePostition, DirectX::XMVectorSet(0, 0, 1, 0), upDirection);
-
-	float aspectRatio = GetClientWidth()/static_cast<float>(GetClientHeight());
-	projectionMatrix_ = DirectX::XMMatrixPerspectiveFovLH(DirectX::XMConvertToRadians(45.0f), aspectRatio, 0.1f, 100.0f);
-
-
-	float angle = static_cast<float>(totalTime*0.0/200.0);
-	const DirectX::XMVECTOR rotationAxis = DirectX::XMVectorSet(0, 1, 0, 0);
-	DirectX::XMMATRIX rotationMatrix = DirectX::XMMatrixRotationAxis(rotationAxis, angle);
-	modelMatrix_ = DirectX::XMMatrixMultiply(modelMatrix_, rotationMatrix);
+	break;
+	case GameStates::SPLASH:
+	{
+		SplashUI();
+	}
+	break;
+	case GameStates::LOADING:
+	{
+		if(!threadSpawned_){
+			asyncThread_.Start(&MeshViewer::ProcessObjFile,this, std::cref(filePath_));
+			threadSpawned_ = true;
+		}
+		if(asyncThread_.GetCompleted()){
+			asyncThread_.Join();
+			asyncThread_.Reset();
+			nextState_ = GameStates::VIEWER;
+		}
+		LoadingUI();
+	}
+	break;
+	}
 
 }
 
 
 void MeshViewer::OnRender(double deltaTime, double totalTime){
+	ImGui::Render();
 	ID3D12Resource* pBackBuffer = pWindow->GetCurrentBackBuffer();
 	UINT currentBackBufferIdx = pWindow->GetCurrentBackbufferIndex();
 	ID3D12GraphicsCommandList2* pCommandList = pApp_->GetCommandQueue()->GetCommandList();
@@ -289,7 +239,9 @@ void MeshViewer::OnRender(double deltaTime, double totalTime){
 
 	pCommandList->OMSetRenderTargets(1, &rtv, FALSE, &dsv);
 
-	
+	switch(gameState_){
+	case GameStates::VIEWER:
+	{
 	DirectX::XMMATRIX mvpMatrix = DirectX::XMMatrixMultiply(modelMatrix_, DirectX::XMMatrixScaling(zoom_,zoom_,zoom_));
 	mvpMatrix = DirectX::XMMatrixMultiply(mvpMatrix, viewMatrix_);
 	mvpMatrix = DirectX::XMMatrixMultiply(mvpMatrix, projectionMatrix_);
@@ -300,6 +252,20 @@ void MeshViewer::OnRender(double deltaTime, double totalTime){
 	if(boundingBoxVisible_){
 		//RecordDebugRenderPass(pCommandList);
 	}
+	}
+	break;
+	case GameStates::SPLASH:
+	{
+	
+	}
+	break;
+	case GameStates::LOADING:
+	{
+	}
+	break;
+	}
+	pCommandList->SetDescriptorHeaps(1, imguiSRVAlloc_.GetHeapPointerLocation(0));
+	ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), pCommandList);
 
 	barrier = CD3DX12_RESOURCE_BARRIER::Transition(pBackBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
 	pCommandList->ResourceBarrier(1, &barrier);
@@ -639,9 +605,227 @@ void MeshViewer::CenterMesh(){
 	//modelMatrix_ = XMMatrixMultiply(modelMatrix_, rotationMatrix);
 }
 
+void MeshViewer::ProcessObjFile(const std::string &filePath,JobState &state){
+	std::vector<VertexPosTexNorm> indexedVertexData = {};
+	std::vector<uint32_t> indexData = {};
+	std::vector<MaterialInfo> materialInfoData;
+	std::unordered_map<std::string, size_t> materialIdMap;
+	state.stage = 0;
+	FileTools::Obj obj(filePath_);
+	obj.MapFile();
+	obj.ParseObjFile(&indexedVertexData, &indexData, &subMeshData_, &materialInfoData, &materialIdMap);
+	obj.CloseFile();
+	
+	DebugPrint("Triangles: %i\n", indexData.size());
+	//DebugPrint("LOD Triangles: %i\n", lodData.size());
+	state.stage = 1;
+	std::string currObject = "";
+	std::string currGroup = "";
+	std::string currMaterial = "";
+	SubMesh temp;
+	for(uint32_t i = 0; i<subMeshData_.size(); ++i){
+		state.percent = float(i)/subMeshData_.size();
+		temp = subMeshData_[i];
+		if(temp.objName!=currObject){
+			occluderOffsetData_.push_back({temp.objName, temp.indexOffset, temp.numIndices, temp.numIndices,  temp.vertexOffset, temp.numVertices,temp.numVertices, 0.0f, AABB()});
+			currObject = temp.objName;
+			continue;
+		}
+		if(temp.groupName!=currGroup&&temp.objName==""){
+			occluderOffsetData_.push_back({temp.groupName, temp.indexOffset, temp.numIndices, temp.numIndices,  temp.vertexOffset, temp.numVertices,temp.numVertices, 0.0f, AABB()});
+			currGroup = temp.groupName;
+			continue;
+		}
+		if(temp.material!=currMaterial&&temp.objName==""&&temp.groupName==""){
+			occluderOffsetData_.push_back({temp.material, temp.indexOffset, temp.numIndices, temp.numIndices,  temp.vertexOffset, temp.numVertices,temp.numVertices, 0.0f, AABB()});
+			currMaterial = temp.material;
+			continue;
+		}
+		occluderOffsetData_.back().numIndicesTotal += temp.numIndices;
+		occluderOffsetData_.back().numVerticesTotal += temp.numVertices;
+		if(!temp.alphaTested){
+			occluderOffsetData_.back().numIndices += temp.numIndices;
+			occluderOffsetData_.back().numVertices += temp.numVertices;
+		}
+	
+	}
+
+
+
+
+	size_t listSize = occluderOffsetData_.size();
+	DataAnalysis::DataAnalyzer analyzer(listSize);
+	std::vector<std::string_view> itemList(listSize);
+	std::vector<float> lengthScaleData(listSize);
+	std::vector<float> occluderScoreData(listSize);
+	std::vector<float> triangleNumData(listSize);
+ 
+	std::vector<AABB> maxBoundingBoxData = {};
+	std::vector<AABB> minBoundingBoxData = {};
+	//std::vector<VertexPos> indexedBBVertexData = {};
+	//std::vector<uint32_t> bbIndexData = {};
+	state.stage = 2;
+	for(size_t idx=0; idx<occluderOffsetData_.size(); ++idx){
+		state.percent = (float)idx/occluderOffsetData_.size();
+		maxBoundingBoxData.clear();
+		minBoundingBoxData.clear();
+		OccluderMesh *pMeshInfo = &occluderOffsetData_[idx];
+		double exp = std::log2((double)pMeshInfo->numIndices/30.0);
+		size_t maxLimit = (size_t)std::pow(2, (size_t)exp);
+		size_t minLimit = (size_t)std::pow(2, (size_t)(exp/4));
+		MeshTools::GenerateAABBData(indexedVertexData.data(), indexedVertexData.size(), indexData.data()+pMeshInfo->indexOffset, pMeshInfo->numIndices, maxLimit, &maxBoundingBoxData);
+		MeshTools::GenerateAABBData(indexedVertexData.data(), indexedVertexData.size(), indexData.data()+pMeshInfo->indexOffset, pMeshInfo->numIndices, minLimit, &minBoundingBoxData);
+		//MeshTools::GenerateAABBWireFrame(maxBoundingBoxData,indexedBBVertexData, bbIndexData);
+		float occluderScore = MeshTools::GetOccluderPotential(minBoundingBoxData, maxBoundingBoxData, pMeshInfo->numIndicesTotal/3);
+		AABB boundingBox = maxBoundingBoxData.back();
+		pMeshInfo->occluderScore = occluderScore;
+		pMeshInfo->boundingBox = boundingBox;
+		//DebugPrint("Occluder Potential: %f\n", pMeshInfo->occluderScore);	
+		itemList[idx] = pMeshInfo->meshId;
+		lengthScaleData[idx] = boundingBox.GetDiagonal();
+		occluderScoreData[idx] = (occluderScore)? occluderScore*boundingBox.GetAABBSurfaceArea() : 0.0f;
+		triangleNumData[idx] = pMeshInfo->numIndicesTotal/3;
+	}
+
+	analyzer.SetItemList(std::move(itemList));
+	analyzer.AddDataSeries(std::string("Length Scale"), std::move(lengthScaleData));
+	analyzer.AddDataSeries(std::string("Occluder Score"), std::move(occluderScoreData));
+	analyzer.AddDataSeries(std::string("Triangle Number"), std::move(triangleNumData));
+
+	AnalyzeSceneData(analyzer);
+	UploadMainPassResources(indexedVertexData,indexData);
+}
+
 void MeshViewer::AnalyzeSceneData(DataAnalysis::DataAnalyzer &analyzer){
 	//analyzer.SortBySeries(std::string("Length Scale"));
 	//analyzer.Truncate(1.8f, FLT_MAX);
 	analyzer.SortBySeries(std::string("Occluder Score"));
 	analyzer.ReturnCurrentSeries(&occluderRankingData_);
+}
+
+void MeshViewer::InitImgui(){
+	ImGui_ImplWin32_EnableDpiAwareness();
+	float main_scale = ImGui_ImplWin32_GetDpiScaleForMonitor(::MonitorFromPoint(POINT{0, 0}, MONITOR_DEFAULTTOPRIMARY));
+	IMGUI_CHECKVERSION();
+	ImGui::CreateContext();
+
+	ImGuiIO &io = ImGui::GetIO(); 
+	(void)io;
+	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     	
+	io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
+
+	ImGui::StyleColorsDark();
+
+	// Setup scaling
+	ImGuiStyle &style = ImGui::GetStyle();
+	style.ScaleAllSizes(main_scale);        // Bake a fixed style scale. (until we have a solution for dynamic style scaling, changing this requires resetting Style + calling this again)
+	style.FontScaleDpi = main_scale;        // Set initial font scale. (using io.ConfigDpiScaleFonts=true makes this unnecessary. We leave both here for documentation purpose)
+
+	// Setup Platform/Renderer backends
+	ImGui_ImplWin32_Init(pWindow->GetWindowHandle());
+
+	ImGui_ImplDX12_InitInfo init_info = {};
+	init_info.Device = pApp_->GetDevice();
+	init_info.CommandQueue = pApp_->GetCommandQueue()->GetCommandQueue();
+	init_info.NumFramesInFlight = pWindow->GetMaxBufferCount();
+	init_info.RTVFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
+	init_info.DSVFormat = DXGI_FORMAT_UNKNOWN;
+	init_info.UserData = this;
+	// Allocating SRV descriptors (for textures) is up to the application, so we provide callbacks.
+	// (current version of the backend will only allocate one descriptor, future versions will need to allocate more)
+	init_info.SrvDescriptorHeap = imguiSRVAlloc_.GetHeapPointer(0);
+	init_info.SrvDescriptorAllocFn = [](ImGui_ImplDX12_InitInfo *info, D3D12_CPU_DESCRIPTOR_HANDLE *out_cpu_handle, D3D12_GPU_DESCRIPTOR_HANDLE *out_gpu_handle) {
+		auto self = static_cast<MeshViewer *>(info->UserData);
+		return self->imguiSRVAlloc_.Alloc(out_cpu_handle, out_gpu_handle); };
+	init_info.SrvDescriptorFreeFn = [](ImGui_ImplDX12_InitInfo *info, D3D12_CPU_DESCRIPTOR_HANDLE cpu_handle, D3D12_GPU_DESCRIPTOR_HANDLE gpu_handle) {
+		auto self = static_cast<MeshViewer *>(info->UserData);
+		return self->imguiSRVAlloc_.Free(cpu_handle, gpu_handle); };
+	ImGui_ImplDX12_Init(&init_info);
+}
+
+void MeshViewer::DestroyImgui(){
+	ImGui_ImplDX12_Shutdown();
+	ImGui_ImplWin32_Shutdown();
+	ImGui::DestroyContext();
+}
+
+void MeshViewer::UpdateImgui(){
+	ImGuiIO& io =  ImGui::GetIO();
+	(void)io;
+
+	{
+		static float f = 0.0f;
+		static int counter = 0;
+		ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
+
+		ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
+
+		ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
+
+		if(ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
+			counter++;
+		ImGui::SameLine();
+		ImGui::Text("counter = %d", counter);
+
+		ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f/io.Framerate, io.Framerate);
+		ImGui::End();
+	}
+}
+
+void MeshViewer::SplashUI(){
+	ImGuiWindowFlags flags = ImGuiWindowFlags_NoResize|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoTitleBar;
+	ImGui::SetNextWindowPos(ImVec2(pWindow->GetClientWidth()/2, pWindow->GetClientHeight()/2),0, ImVec2(0.5f,0.5f));
+	ImGui::Begin("Splash", nullptr ,flags);
+	
+	if(ImGui::Button("Choose File")){
+		ThrowIfFailed(::CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED));
+		IFileOpenDialog *pFileOpen = NULL;
+		HRESULT hr = CoCreateInstance(CLSID_FileOpenDialog, NULL, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&pFileOpen));
+		if(SUCCEEDED(hr)){
+			hr = pFileOpen->Show(pWindow->GetWindowHandle());
+			if(SUCCEEDED(hr)){
+				IShellItem *pItem;
+				hr = pFileOpen->GetResult(&pItem);
+				if(SUCCEEDED(hr)){
+					PWSTR filePath = NULL;
+					pItem->GetDisplayName(SIGDN_FILESYSPATH, &filePath);
+					std::wstring tmp(filePath);
+					WStringToString(tmp, &filePath_);
+					
+
+					CoTaskMemFree(filePath);
+					pItem->Release();
+				}
+			}
+			pFileOpen->Release();
+		}
+		::CoUninitialize();
+	}
+	if(filePath_!=""){
+		ImGui::Text(filePath_.data());
+		if(ImGui::Button("Load File")){
+			nextState_ = GameStates::LOADING;
+		}
+	}
+	ImGui::End();
+
+}
+
+void MeshViewer::LoadingUI(){
+	ImGuiWindowFlags flags = ImGuiWindowFlags_NoResize|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoTitleBar;
+	ImGui::SetNextWindowPos(ImVec2(pWindow->GetClientWidth()/2, pWindow->GetClientHeight()/2),0, ImVec2(0.5f,0.5f));
+	ImGui::Begin("Loading", nullptr ,flags);
+	switch(asyncThread_.GetStage()){
+	case 0:
+	ImGui::Text("Parsing File");
+		break;
+	case 1:
+	ImGui::Text("Grouping Meshes");
+		break;
+	case 2:
+	ImGui::Text("Calculating Occluder Data");
+	ImGui::ProgressBar(asyncThread_.GetPercent(), ImVec2(-1, 0));
+		break;
+	}
+	ImGui::End();
 }

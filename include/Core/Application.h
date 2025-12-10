@@ -27,7 +27,7 @@ public:
 	ID3D12Device2 *GetDevice() const;
 	CommandQueue *GetCommandQueue(D3D12_COMMAND_LIST_TYPE = D3D12_COMMAND_LIST_TYPE_DIRECT) const;
 	void Flush();
-	ID3D12DescriptorHeap *CreateDescriptorHeap(UINT numDescriptors, D3D12_DESCRIPTOR_HEAP_TYPE type);
+	ID3D12DescriptorHeap *CreateDescriptorHeap(UINT numDescriptors, D3D12_DESCRIPTOR_HEAP_TYPE type, D3D12_DESCRIPTOR_HEAP_FLAGS flags);
 	UINT GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE type) const;
 	inline std::map<HWND, Window *> *GetWindowMapRef(){ return &windowMap_; }
 private:

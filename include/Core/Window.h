@@ -65,7 +65,7 @@ private:
 	bool isTearingSupported_;
 	bool vSync_;
 	bool fullscreen_;
-	Application *app_;
+	Application *pApp_;
 	Clock updateClock_;
 	Clock renderClock_;
 };

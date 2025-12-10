@@ -5,6 +5,8 @@
 #include <Core/Window.h>
 #include <Utils/FileTools.h>
 #include <Utils/DataAnalysis.h>
+#include <Core/DescriptorHeapAllocator.h>
+#include <Core/AsyncJob.h>
 
 
 class Application;
@@ -22,11 +24,16 @@ struct OccluderMesh{
 	float occluderScore;
 	AABB boundingBox;
 };
+enum class GameStates{
+	SPLASH,
+	LOADING,
+	VIEWER
+};
 class MeshViewer : public Game{
 	
 public:
 	using super = Game;
-	MeshViewer(Application *pApp,const std::wstring &name, int width, int height,const std::string &filePath, bool vSync = false);
+	MeshViewer(Application *pApp,const std::wstring &name, int width, int height, bool vSync = false);
 
 
 	virtual bool LoadContent() override;
@@ -62,21 +69,32 @@ private:
 
 	void CreateDebugPassPipelineState();
 
+	void InitImgui();
+	void DestroyImgui();
+	void UpdateImgui();
+	void SplashUI();
+	void ViewerUI();
+	void LoadingUI();
+
 	void CenterMesh();
 	void ScaleMesh();
 
 	void AnalyzeSceneData(DataAnalysis::DataAnalyzer &analyzer);
+	void ProcessObjFile( const std::string &filePath, JobState &state);
 
 	inline constexpr float GetCameraSpeed(){ return 1.0f; }
 
-
+	GameStates gameState_;
+	GameStates nextState_;
 	Application *pApp_;
 	uint64_t fenceValues_[Window::kBufferCount] = {};
-	const std::string filePath_;
+	std::string filePath_;
 	std::vector<SubMesh> subMeshData_;
 
 	std::vector<OccluderMesh> occluderOffsetData_;
 	std::vector<std::pair<float, size_t>> occluderRankingData_;
+
+	DescriptorHeapAllocator imguiSRVAlloc_;
 
 	ID3D12Resource *pDepthBuffer_;
 	ID3D12DescriptorHeap *pDsvHeap_;
@@ -96,6 +114,8 @@ private:
 	DirectX::XMFLOAT4 cameraVelocity_;
 	DirectX::XMFLOAT4 cameraPos_;
 
+	AsyncJob asyncThread_;
+	bool threadSpawned_;
 	bool boundingBoxVisible_;
 	size_t meshIdx;
 	float zoom_;
