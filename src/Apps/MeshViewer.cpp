@@ -44,7 +44,13 @@ bool MeshViewer::LoadContent(){
 	CreateDepthBuffer(GetClientWidth(), GetClientHeight()); 
 	
 	InitImgui();
-
+	std::string directory = CONFIG_PATH;
+	std::string fileName = "contexts.txt";
+	InputManager *pInputManager = pApp_->GetInputManager();
+	pInputManager->LoadContexts(fileName, directory, InputContext::GetActionId, InputContext::GetStateId);
+	std::string context = "MeshContext";
+	pInputManager->PushContext(context);
+	pInputManager->AddCallback([this](MappedInput *input){return this->HandleInput(input);}, 0);
 	return true;
 }
 
@@ -55,8 +61,10 @@ void MeshViewer::UnloadContent(){
 	SafeRelease(pPipelineState_[1]);
 	SafeRelease(pRootSignature_);
 	SafeRelease(pDsvHeap_);
-	SafeRelease(pIndexBuffer_[0]);
-	SafeRelease(pVertexBuffer_[0]);
+	if(gameState_==GameStates::VIEWER){
+		SafeRelease(pIndexBuffer_[0]);
+		SafeRelease(pVertexBuffer_[0]);
+	}
 	//SafeRelease(pIndexBuffer_[1]);
 	//SafeRelease(pVertexBuffer_[1]);
 	imguiSRVAlloc_.Destroy();
@@ -69,32 +77,8 @@ void MeshViewer::OnResize(int height, int width){
 
 void MeshViewer::OnKeyPress(KeyCodes key, bool shift, bool ctl, bool alt){
 	switch(key){
-	case KeyCodes::F:
-		pWindow->ToggleFullscreen();
-		break;
-	case KeyCodes::V:
-		pWindow->ToggleVSync();
-		break;
 	case KeyCodes::Esc:
 		pApp_->Quit(0);
-		break;
-	case KeyCodes::W:
-		cameraVelocity_.y =	+GetCameraSpeed();
-		break;			
-	case KeyCodes::S:
-		cameraVelocity_.y =	-GetCameraSpeed();
-		break;			
-	case KeyCodes::A:
-		cameraVelocity_.x =	-GetCameraSpeed();
-		break;			
-	case KeyCodes::D:
-		cameraVelocity_.x =	+GetCameraSpeed();
-		break;			
-	case KeyCodes::Q:
-		cameraVelocity_.z =	+GetCameraSpeed();
-		break;			
-	case KeyCodes::E:
-		cameraVelocity_.z =	-GetCameraSpeed();
 		break;
 	case KeyCodes::B:
 		boundingBoxVisible_ = !boundingBoxVisible_;
@@ -117,29 +101,11 @@ void MeshViewer::OnKeyPress(KeyCodes key, bool shift, bool ctl, bool alt){
 		}
 		DebugPrint("Occluder Score: %f\n", occluderRankingData_.at(meshIdx).first);
 		break;
-	case KeyCodes::Z:
-		zoom_ *= 0.5;
-		break;
-	case KeyCodes::X:
-		zoom_ *= 2;
-	
 	}
 
 }
 void MeshViewer::OnKeyRelease(KeyCodes key, bool shift, bool ctl, bool alt){
 	switch(key){
-	case KeyCodes::W:
-		cameraVelocity_.y = 0.0f;
-		break;
-	case KeyCodes::S:
-		cameraVelocity_.y = 0.0f;
-		break;
-	case KeyCodes::A:
-		cameraVelocity_.x = 0.0f;
-		break;
-	case KeyCodes::D:
-		cameraVelocity_.x = 0.0f;
-		break;
 	case KeyCodes::Q:
 		cameraVelocity_.z = 0.0f;
 		break;
@@ -150,18 +116,55 @@ void MeshViewer::OnKeyRelease(KeyCodes key, bool shift, bool ctl, bool alt){
 	}
 }
 
+void MeshViewer::HandleInput(MappedInput *input){
+	using namespace InputContext;
+	for(auto iter = input->Actions.begin(); iter!=input->Actions.end(); ++iter){
+		switch(static_cast<Actions>(*iter)){
+		case Actions::MoveCameraUp:
+			cameraPos_.y += 0.1;
+			input->ConsumeAction((size_t)Actions::MoveCameraUp);
+			break;
+		case Actions::MoveCameraDown:
+			cameraPos_.y -= 0.1;
+			input->ConsumeAction((size_t)Actions::MoveCameraDown);
+			break;
+		case Actions::MoveCameraLeft:
+			cameraPos_.x -= 0.1;
+			input->ConsumeAction((size_t)Actions::MoveCameraLeft);
+			break;
+		case Actions::MoveCameraRight:
+			cameraPos_.x += 0.1;
+			input->ConsumeAction((size_t)Actions::MoveCameraRight);
+			break;
+		case Actions::ToggleFullscren:
+			pWindow->ToggleFullscreen();
+			input->ConsumeAction((size_t)Actions::ToggleFullscren);
+			break;
+		case Actions::ToggleVsync:
+			pWindow->ToggleVSync();
+			input->ConsumeAction((size_t)Actions::ToggleVsync);
+			break;
+		case Actions::ZoomIn:
+			zoom_ *= 2;
+			input->ConsumeAction((size_t)Actions::ZoomIn);
+			break;
+		case Actions::ZoomOut:
+			zoom_ *= 0.5;
+			input->ConsumeAction((size_t)Actions::ZoomOut);
+			break;
+		}
+	
+	}
+	const auto statesEnd = input->States.end();
+	cameraVelocity_.y = 0.0f;
+	cameraVelocity_.x = 0.0f;
+	cameraVelocity_.y+= (input->States.find((size_t)States::CameraMovingUp)!=statesEnd) ? +GetCameraSpeed() : 0.0f;
+	cameraVelocity_.y+= (input->States.find((size_t)States::CameraMovingDown)!=statesEnd) ? -GetCameraSpeed() : 0.0f;
+	cameraVelocity_.x+= (input->States.find((size_t)States::CameraMovingRight)!=statesEnd) ? +GetCameraSpeed() : 0.0f;
+	cameraVelocity_.x+= (input->States.find((size_t)States::CameraMovingLeft)!=statesEnd) ? -GetCameraSpeed() : 0.0f;
+}
 
 void MeshViewer::OnUpdate(double deltaTime, double totalTime){
-	//static double elapsedSeconds =0.0;
-	//static uint64_t frameCounter=0;
-	//frameCounter++;
-	//elapsedSeconds += deltaTime;
-	//if(elapsedSeconds>1.0){
-	//	auto fps = frameCounter/elapsedSeconds;
-	//	DebugPrint("FPS: %f\n",fps);
-	//	elapsedSeconds = 0;
-	//	frameCounter = 0;
-	//}
 	gameState_ = nextState_;
 
 	ImGui_ImplDX12_NewFrame();

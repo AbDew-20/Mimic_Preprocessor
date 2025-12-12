@@ -1,0 +1,59 @@
+#pragma once
+
+#include <set>
+#include <unordered_map>
+#include <map>
+#include <string>
+#include <list>
+#include <Core/KeyCodes.h>
+#include <vector>
+#include <functional>
+
+//Based on https://github.com/grimtraveller/scribblings-by-apoch/tree/master/inputmapping
+
+struct MappedInput{
+	std::set<size_t> Actions;
+	std::set<size_t> States;
+
+
+	void ConsumeAction(size_t action){ Actions.erase(action); }
+	void ConsumeState(size_t state){ States.erase(state); }
+
+
+};
+
+
+
+class InputManager{
+public:
+	InputManager();
+	void LoadContexts(std::string &contextList, std::string &directory, std::function<size_t(const std::string&)> GetActionId, std::function<size_t(const std::string&)> GetStateId);
+	void PushContext(std::string &name);
+	void PopContext();
+	void Clear();
+	void Dispatch();
+	void AddCallback(std::function<void(MappedInput*)> callback, int priority);
+	void SetKeyState(KeyCodes key, bool pressed, bool previouslyPressed);
+
+protected:
+
+
+private:
+	bool MappedAction(KeyCodes button,size_t *pAction);
+	bool MappedState(KeyCodes button, size_t *pState);
+	void ConsumeMapped(KeyCodes button);
+	void ParseContext(std::string &filePath,
+		std::unordered_map<KeyCodes, size_t> *pActionMap,
+		std::unordered_map<KeyCodes, size_t> *pStateMap,
+		std::function<size_t(const std::string &)> GetActionId,
+		std::function<size_t(const std::string &)> GetStateId);
+	MappedInput currentMappedInput_;
+	std::vector<std::unordered_map<KeyCodes, size_t>> actionMaps_;
+	std::vector<std::unordered_map<KeyCodes, size_t>> stateMaps_;
+	std::unordered_map<std::string, size_t> contextList_;
+	std::list<size_t> activeContexts_;
+	std::multimap<int,std::function<void(MappedInput *)>> callbackList_;
+
+
+
+};

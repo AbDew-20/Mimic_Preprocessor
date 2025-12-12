@@ -7,6 +7,8 @@
 #include <Utils/DataAnalysis.h>
 #include <Core/DescriptorHeapAllocator.h>
 #include <Core/AsyncJob.h>
+#include <unordered_map>
+#include <Core/InputManager.h>
 
 
 class Application;
@@ -69,6 +71,8 @@ private:
 
 	void CreateDebugPassPipelineState();
 
+	void HandleInput(MappedInput *input);
+
 	void InitImgui();
 	void DestroyImgui();
 	void UpdateImgui();
@@ -123,3 +127,59 @@ private:
 
 
 };
+
+namespace InputContext{
+	enum class Actions : uint8_t{
+		ToggleFullscren ,
+		ToggleVsync,
+		CycleMeshUp ,
+		CycleMeshDown,
+		MoveCameraUp,
+		MoveCameraDown,
+		MoveCameraLeft,
+		MoveCameraRight,
+		MoveCameraForward,
+		MoveCameraBack,
+		ZoomIn,
+		ZoomOut,
+		Quit
+	};
+	enum class States : uint8_t{
+		CameraMovingUp,
+		CameraMovingDown,
+		CameraMovingRight,
+		CameraMovingLeft
+	};
+
+	inline std::unordered_map<std::string, Actions> actionLookup = {
+		{"ToggleFullscreen" , Actions::ToggleFullscren}	,
+		{"ToggleVsync",      Actions::ToggleVsync }       ,
+		{"CycleMeshUp" ,     Actions::CycleMeshUp }       ,
+		{"CycleMeshDown",    Actions::CycleMeshDown }     ,
+		{"MoveCameraUp",     Actions::MoveCameraUp }      ,
+		{"MoveCameraDown",   Actions::MoveCameraDown }    ,
+		{"MoveCameraLeft",   Actions::MoveCameraLeft }    ,
+		{"MoveCameraRight",  Actions::MoveCameraRight }   ,
+		{"MoveCameraForward",Actions::MoveCameraForward } ,
+		{"MoveCameraBack",   Actions::MoveCameraBack }    ,
+		{"ZoomIn",           Actions::ZoomIn }            ,
+		{"ZoomOut",          Actions::ZoomOut }           ,
+		{"Quit",             Actions::Quit }              
+	};
+
+	inline std::unordered_map<std::string, States> stateLookup = {
+		{"CameraMovingUp",		States::CameraMovingUp},
+		{"CameraMovingDown",	States::CameraMovingDown},
+		{"CameraMovingRight",	States::CameraMovingRight},
+		{"CameraMovingLeft",	States::CameraMovingLeft}
+	};
+
+	inline size_t GetActionId(const std::string &action){
+		return static_cast<size_t>(actionLookup.at(action));
+	}
+
+	inline size_t GetStateId(const std::string &state){
+		return static_cast<size_t>(stateLookup.at(state));
+	}
+
+}

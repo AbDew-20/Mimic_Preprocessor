@@ -1,5 +1,7 @@
 #pragma once
 #include <cstdint>
+#include <unordered_map>
+#include <string>
 
 
 enum class KeyCodes : uint8_t{
@@ -82,4 +84,85 @@ enum class KeyCodes : uint8_t{
 	F22		=	0x85,	
 	F23		=	0x86,	
 	F24		=	0x87	
+};
+
+inline std::unordered_map<std::string, KeyCodes> keyLookup = {
+	{"LeftMouse" , KeyCodes::LeftMouse} ,
+	{"RightMouse" , KeyCodes::RightMouse},
+	{"MiddleMouse" ,KeyCodes::MiddleMouse},
+	{"BackSpace" , KeyCodes::BackSpace},
+	{"Tab" , KeyCodes::Tab},
+	{"Enter" , KeyCodes::Enter},
+	{"Shift" , KeyCodes::Shift},
+	{"CTRL" , KeyCodes::CTRL},
+	{"Alt" , KeyCodes::Alt},
+	
+	{"Esc" , KeyCodes::Esc},
+	{"Space" , KeyCodes::Space},
+	{"Left" , KeyCodes::Left},
+	{"Up" , KeyCodes::Up},
+	{"Right" , KeyCodes::Right},
+	{"Down" , KeyCodes::Down},
+	{"N0" , KeyCodes::N0},
+	{"N1" , KeyCodes::N1},
+	{"N2" , KeyCodes::N2},
+	{"N3" , KeyCodes::N3},
+	{"N4" , KeyCodes::N4},
+	{"N5" , KeyCodes::N5},
+	{"N6" , KeyCodes::N6},
+	{"N7" , KeyCodes::N7},
+	{"N8" , KeyCodes::N8},
+	{"N9" , KeyCodes::N9},
+	
+	{"A" , KeyCodes::A},
+	{"B" , KeyCodes::B},
+	{"C" , KeyCodes::C},
+	{"D" , KeyCodes::D},
+	{"E" , KeyCodes::E},
+	{"F" , KeyCodes::F},
+	{"G" , KeyCodes::G},
+	{"H" , KeyCodes::H},
+	{"I" , KeyCodes::I},
+	{"J" , KeyCodes::J},
+	{"K" , KeyCodes::K},
+	{"L" , KeyCodes::L},
+	{"M" , KeyCodes::M},
+	{"N" , KeyCodes::N},
+	{"O" , KeyCodes::O},
+	{"P" , KeyCodes::P},
+	{"Q" , KeyCodes::Q},
+	{"R" , KeyCodes::R},
+	{"S" , KeyCodes::S},
+	{"T" , KeyCodes::T},
+	{"U" , KeyCodes::U},
+	{"V" , KeyCodes::V},
+	{"W" , KeyCodes::W},
+	{"X" , KeyCodes::X},
+	{"Y" , KeyCodes::Y},
+	{"Z" , KeyCodes::Z},
+	
+	{"F1" , KeyCodes::F1},
+	{"F2" , KeyCodes::F2},
+	{"F3" , KeyCodes::F3},
+	{"F4" , KeyCodes::F4},
+	{"F5" , KeyCodes::F5},
+	{"F6" , KeyCodes::F6},
+	{"F7" , KeyCodes::F7},
+	{"F8" , KeyCodes::F8},
+	{"F9" , KeyCodes::F9},
+	{"F10" , KeyCodes::F10},
+	{"F11" , KeyCodes::F11},
+	{"F12" , KeyCodes::F12},
+	{"F13" , KeyCodes::F13},
+	{"F14" , KeyCodes::F14},
+	{"F15" , KeyCodes::F15},
+	{"F16" , KeyCodes::F16},
+	{"F17" , KeyCodes::F17},
+	{"F18" , KeyCodes::F18},
+	{"F19" , KeyCodes::F19},
+	{"F20" , KeyCodes::F20},
+	{"F21" , KeyCodes::F21},
+	{"F22" , KeyCodes::F22},
+	{"F23" , KeyCodes::F23},
+	{"F24" , KeyCodes::F24}
 };

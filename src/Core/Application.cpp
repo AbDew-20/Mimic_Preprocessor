@@ -277,6 +277,8 @@ int Application::Run(Game *pGame){
 		if(running){
 			appClock.Tick();
 			for(auto iter = windowMap_.begin(); iter!=windowMap_.end(); ++iter){
+				inputManager_.Dispatch();
+				inputManager_.Clear();
 				iter->second->OnUpdate();
 				focused = iter->second->IsFocused();
 				minimized = iter->second->IsMinimized();
@@ -339,12 +341,14 @@ static LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM l
 			if(::PeekMessage(&charMsg, hWnd, 0, 0, PM_NOREMOVE)&&charMsg.message==WM_CHAR){
 				GetMessage(&charMsg, hWnd, 0, 0);
 			}
+			bool previouslyPressed = ((lParam & (1<<30)) !=0);
 
 			bool alt = (::GetAsyncKeyState(VK_MENU)&0x8000)!=0;
 			bool ctl = (::GetAsyncKeyState(VK_CONTROL)&0x8000)!=0;
 			bool shift = (::GetAsyncKeyState(VK_SHIFT)&0x8000)!=0;
-
+			
 			KeyCodes key = (KeyCodes)wParam;
+			pApp->GetInputManager()->SetKeyState(key, true, previouslyPressed);
 			pWindow->OnKeyPress(key, shift, ctl, alt);
 		}
 		break;
@@ -360,6 +364,7 @@ static LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM l
 			bool shift = (::GetAsyncKeyState(VK_SHIFT)&0x8000)!=0;
 
 			KeyCodes key = (KeyCodes)wParam;
+			pApp->GetInputManager()->SetKeyState(key, false, true);
 			pWindow->OnKeyRelease(key, shift, ctl, alt);
 		
 		}
