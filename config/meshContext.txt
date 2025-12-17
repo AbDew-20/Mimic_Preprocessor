@@ -1,14 +1,4 @@
-8
-MoveCameraUp W
-MoveCameraLeft A
-MoveCameraDown S
-MoveCameraRight D
+2
 ToggleFullscreen F
 ToggleVsync V
-ZoomIn Z
-ZoomOut X
-4
-CameraMovingUp W
-CameraMovingDown S
-CameraMovingRight D
-CameraMovingLeft A
+0

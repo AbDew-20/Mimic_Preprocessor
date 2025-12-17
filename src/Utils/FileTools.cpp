@@ -380,7 +380,7 @@ void FileTools::Obj::ParseObjFile(
 						interleavedBuffer.clear();
 					}
 					else{
-						pMeshOffsetData->push_back({objectName,groupName, mtlName, pIndexBuffer->size(), interleavedBuffer.size(), pIndexedVertexBuffer->size(), 0, alphaTested});
+						pMeshOffsetData->push_back(SubMesh{objectName,groupName, mtlName, pIndexBuffer->size(), interleavedBuffer.size(), pIndexedVertexBuffer->size(), 0, alphaTested});
 						Obj::GenerateIndexBuffer(interleavedBuffer, pIndexedVertexBuffer, pIndexBuffer);
 						pMeshOffsetData->back().numVertices = pIndexedVertexBuffer->size()-pMeshOffsetData->back().vertexOffset;
 						interleavedBuffer.clear();

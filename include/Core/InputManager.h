@@ -4,6 +4,7 @@
 #include <unordered_map>
 #include <map>
 #include <string>
+#include <string_view>
 #include <list>
 #include <Core/KeyCodes.h>
 #include <vector>
@@ -27,7 +28,7 @@ struct MappedInput{
 class InputManager{
 public:
 	InputManager();
-	void LoadContexts(std::string &contextList, std::string &directory, std::function<size_t(const std::string&)> GetActionId, std::function<size_t(const std::string&)> GetStateId);
+	void LoadContexts(std::string &contextList, std::string &directory, size_t (*GetActionId)(std::string_view), size_t (*GetStateId)(std::string_view));
 	void PushContext(std::string &name);
 	void PopContext();
 	void Clear();
@@ -45,8 +46,8 @@ private:
 	void ParseContext(std::string &filePath,
 		std::unordered_map<KeyCodes, size_t> *pActionMap,
 		std::unordered_map<KeyCodes, size_t> *pStateMap,
-		std::function<size_t(const std::string &)> GetActionId,
-		std::function<size_t(const std::string &)> GetStateId);
+		size_t (*GetActionId)(std::string_view),
+		size_t (*GetStateId)(std::string_view));
 	MappedInput currentMappedInput_;
 	std::vector<std::unordered_map<KeyCodes, size_t>> actionMaps_;
 	std::vector<std::unordered_map<KeyCodes, size_t>> stateMaps_;

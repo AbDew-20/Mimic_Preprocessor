@@ -8,6 +8,8 @@
 #include <Core/Window.h>
 #include <Core/CommandQueue.h>
 #include <Core/InputManager.h>
+#include <Core/PipelineManager.h>
+#include <Core/ResourceManager.h>
 class Game;
 class CommandQueue;
 class Application{
@@ -28,6 +30,8 @@ public:
 	ID3D12Device2 *GetDevice() const;
 	CommandQueue *GetCommandQueue(D3D12_COMMAND_LIST_TYPE = D3D12_COMMAND_LIST_TYPE_DIRECT) const;
 	InputManager *GetInputManager(){ return &inputManager_; }
+	ResourceManager *GetResourceManager(){ return &resourceManager_; }
+	PipelineManager *GetPipelineManager(){ return &pipelineManager_; }
 	void Flush();
 	ID3D12DescriptorHeap *CreateDescriptorHeap(UINT numDescriptors, D3D12_DESCRIPTOR_HEAP_TYPE type, D3D12_DESCRIPTOR_HEAP_FLAGS flags);
 	UINT GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE type) const;
@@ -46,6 +50,8 @@ private:
 	PoolAllocator<Window> windowPool_;
 	PoolAllocator<CommandQueue> commandQueuePool_;
 	InputManager inputManager_;
+	ResourceManager resourceManager_;
+	PipelineManager pipelineManager_;
 	HINSTANCE hInstance_;
 	IDXGIAdapter4 *pDxgiAdapter_;
 	ID3D12Device2 *pDevice_;

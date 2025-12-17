@@ -21,9 +21,10 @@ public:
 	virtual bool Initialize();
 
 	virtual bool LoadContent() = 0;
-
+	
 	virtual void UnloadContent() = 0;
 	virtual void Destroy();
+	virtual void TransitionState() = 0;
 
 protected:
 	friend class Window;

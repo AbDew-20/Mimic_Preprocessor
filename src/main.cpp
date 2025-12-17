@@ -1,6 +1,6 @@
 #include <Core/Application.h>
 #include <dxgidebug.h>
-#include <Apps/MeshViewer.h>
+#include <Apps/MeshViewer/MeshViewer.h>
 
 void LiveObjects(){
 	IDXGIDebug1 *dxgiDebug;

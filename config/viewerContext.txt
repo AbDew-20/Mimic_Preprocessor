@@ -1,0 +1,14 @@
+8
+MoveCameraUp W
+MoveCameraLeft A
+MoveCameraDown S
+MoveCameraRight D
+ZoomIn Z
+ZoomOut X
+CycleMeshUp Up
+CycleMeshDown Down
+4
+CameraMovingUp W
+CameraMovingDown S
+CameraMovingRight D
+CameraMovingLeft A

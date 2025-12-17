@@ -1,0 +1,14 @@
+8
+None W
+None A
+None S
+None D
+None Z
+None X
+None Up
+None Down
+4
+None W
+None S
+None D
+None A

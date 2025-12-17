@@ -75,15 +75,15 @@ ID3D12CommandAllocator *CommandQueue::CreateComamandAllocator(){
 	return pCommandAllocator;
 }
 
-ID3D12GraphicsCommandList2 *CommandQueue::CreateCommandList(ID3D12CommandAllocator *pAllocator){
-	ID3D12GraphicsCommandList2 *pCommandList;
+ID3D12GraphicsCommandList4 *CommandQueue::CreateCommandList(ID3D12CommandAllocator *pAllocator){
+	ID3D12GraphicsCommandList4 *pCommandList;
 	ThrowIfFailed(pDevice_->CreateCommandList(0, commandListType_, pAllocator, nullptr, IID_PPV_ARGS(&pCommandList)));
 	return pCommandList;
 }
 
-ID3D12GraphicsCommandList2 *CommandQueue::GetCommandList(){
+ID3D12GraphicsCommandList4 *CommandQueue::GetCommandList(){
 	ID3D12CommandAllocator *pCommandAllocator;
-	ID3D12GraphicsCommandList2 *pCommandList;
+	ID3D12GraphicsCommandList4 *pCommandList;
 	if(!commandAllocatorQueue_.empty()&&IsFenceComplete(commandAllocatorQueue_.front().fenceValue)){
 		CommandAllocatorData commandAllocatorData = commandAllocatorQueue_.front();
 		pCommandAllocator = commandAllocatorData.pCommandAllocator;
@@ -111,7 +111,7 @@ ID3D12GraphicsCommandList2 *CommandQueue::GetCommandList(){
 }
 
 
-uint64_t CommandQueue::ExecuteCommandList(ID3D12GraphicsCommandList2 *pCommandList){
+uint64_t CommandQueue::ExecuteCommandList(ID3D12GraphicsCommandList4 *pCommandList){
 	pCommandList->Close();
 	ID3D12CommandAllocator *pCommandAllocator;
 	UINT dataSize = sizeof(pCommandAllocator);

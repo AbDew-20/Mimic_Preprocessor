@@ -9,7 +9,7 @@ InputManager::InputManager(){
 }
 
 
-void InputManager::LoadContexts(std::string &contextList, std::string &directory, std::function<size_t(const std::string&)> GetActionId, std::function<size_t(const std::string&)> GetStateId){
+void InputManager::LoadContexts(std::string &contextList, std::string &directory, size_t (*GetActionId)(std::string_view), size_t (*GetStateId)(std::string_view)){
 	std::vector<char> buffer;
 	std::string filePath = "";
 	filePath.append(directory);
@@ -99,8 +99,8 @@ void InputManager::SetKeyState(KeyCodes key, bool pressed, bool previouslyPresse
 void InputManager::ParseContext(std::string &filePath,
 	std::unordered_map<KeyCodes, size_t> *pActionMap,
 	std::unordered_map<KeyCodes, size_t> *pStateMap,
-	std::function<size_t(const std::string&)> GetActionId,
-	std::function<size_t(const std::string&)> GetStateId){
+	size_t (*GetActionId)(std::string_view),
+	size_t (*GetStateId)(std::string_view)){
 
 	std::vector<char> contextBuffer;
 	FileTools::LoadFileToBuffer(filePath, &contextBuffer);

@@ -17,7 +17,11 @@ Application::Application(HINSTANCE hInstance) :
 	hInstance_(hInstance),
 	tearingSupported_(false),
 	windowPool_(GetNumMaxWindow()),
-	commandQueuePool_(3){}
+	commandQueuePool_(3),
+	resourceManager_(this),
+	pipelineManager_(this)
+{
+}
 
 
 void Application::Init(){
@@ -44,6 +48,8 @@ void Application::Init(){
 		pComputeCommandQueue_->Init();
 		pCopyCommandQueue_ = commandQueuePool_.Emplace(pDevice_, D3D12_COMMAND_LIST_TYPE_COPY);
 		pCopyCommandQueue_->Init();
+
+		pipelineManager_.Init();
 		
 		tearingSupported_ = CheckTearingSupport();
 	}
@@ -52,6 +58,7 @@ void Application::Init(){
 
 void Application::ShutDown(){
 	Flush();
+	pipelineManager_.Cleanup();
 	pDirectCommandQueue_->Destroy();
 	pDirectCommandQueue_ = nullptr;
 	pComputeCommandQueue_->Destroy();
@@ -276,6 +283,7 @@ int Application::Run(Game *pGame){
 
 		if(running){
 			appClock.Tick();
+			pGame->TransitionState();
 			for(auto iter = windowMap_.begin(); iter!=windowMap_.end(); ++iter){
 				inputManager_.Dispatch();
 				inputManager_.Clear();

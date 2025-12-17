@@ -8,9 +8,9 @@ class CommandQueue{
 public:
 	CommandQueue(ID3D12Device2 *device, D3D12_COMMAND_LIST_TYPE type);
 
-	ID3D12GraphicsCommandList2 *GetCommandList();
+	ID3D12GraphicsCommandList4 *GetCommandList();
 
-	uint64_t ExecuteCommandList(ID3D12GraphicsCommandList2 *commandList);
+	uint64_t ExecuteCommandList(ID3D12GraphicsCommandList4 *commandList);
 	uint64_t Signal();
 	bool IsFenceComplete(uint64_t fenceValue);
 	void WaitForFenceValue(uint64_t fenceValue);
@@ -22,7 +22,7 @@ public:
 
 private:
 	ID3D12CommandAllocator *CreateComamandAllocator();
-	ID3D12GraphicsCommandList2 *CreateCommandList(ID3D12CommandAllocator *pAllocator);
+	ID3D12GraphicsCommandList4 *CreateCommandList(ID3D12CommandAllocator *pAllocator);
 
 	struct CommandAllocatorData{
 		uint64_t fenceValue;
@@ -38,5 +38,5 @@ private:
 	uint64_t fenceValue_;
 
 	std::queue<CommandAllocatorData> commandAllocatorQueue_;
-	std::queue<ID3D12GraphicsCommandList2 *> commandListQueue_;
+	std::queue<ID3D12GraphicsCommandList4 *> commandListQueue_;
 };
