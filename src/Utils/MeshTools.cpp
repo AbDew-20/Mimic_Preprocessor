@@ -85,6 +85,26 @@ void MeshTools::GenerateAABBWireFrame(const std::vector<AABB> &boundingBoxData, 
 	
 }
 
+void MeshTools::PushBackMeshAABBWireFrame(const AABB &boundingBox,
+	std::vector<VertexPos> *pVertexData,
+	std::vector<uint32_t> *pIndexData)
+{
+	const uint8_t xMask = 0b00000001;
+	const uint8_t yMask = 0b00000010;
+	const uint8_t zMask = 0b00000100;
+	const uint32_t offset = pVertexData->size();
+	for(uint8_t j = 0; j<8; ++j){
+		VertexPos vert;
+		vert.vert.x = (j&xMask) ? boundingBox.max.x : boundingBox.min.x;
+		vert.vert.y = (j&yMask) ? boundingBox.max.y : boundingBox.min.y;
+		vert.vert.z = (j&zMask) ? boundingBox.max.z : boundingBox.min.z;
+		pVertexData->push_back(vert);
+	}
+	for(int j = 0; j<24; ++j){
+		pIndexData->push_back(offset+(uint32_t)lineIndexData[j]);
+	}
+}
+
 float MeshTools::GetOccluderPotential(const std::vector<AABB> &minBoundingBoxData, const std::vector<AABB> &maxBoundingBoxData, size_t numTriangles){
 	float minInteriorVolume = 0.0f;
 	float maxInteriorVolume = 0.0f;

@@ -53,6 +53,8 @@ private:
 		const std::string &filePath,
 		std::vector<VertexPosTexNorm> *pIndexedVertexData,
 		std::vector<uint32_t> *pIndexData,
+		std::vector<VertexPos> *pBBBVertexData,
+		std::vector<uint32_t> *pBBIndexData,
 		JobState &state);
 
 	inline constexpr float GetCameraSpeed(){ return 1.0f; }
@@ -63,6 +65,9 @@ private:
 	std::vector<VertexPosTexNorm> indexedVertexData_;
 	std::vector<uint32_t> indexData_;
 	std::vector<SubMesh> subMeshData_;
+
+	std::vector<VertexPos> bbVertexData_;
+	std::vector<uint32_t> bbIndexData_;
 
 	std::vector<OccluderMesh> occluderOffsetData_;
 	std::vector<std::pair<float, size_t>> occluderRankingData_;

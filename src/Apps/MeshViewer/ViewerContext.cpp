@@ -100,7 +100,7 @@ void ViewerContext::Update(ViewerStateParams* pStateParams,double deltaTime, dou
 		if(!pStateParams->loading){
 			pStateParams->asyncStarted = true;
 			pStateParams->workType = "Loading File";
-			asyncThread_.Start(&ViewerContext::ProcessObjFile,std::ref(fileLoaded_), this, std::cref(filePath_), &indexedVertexData_, &indexData_);
+			asyncThread_.Start(&ViewerContext::ProcessObjFile,std::ref(fileLoaded_), this, std::cref(filePath_), &indexedVertexData_, &indexData_, &bbVertexData_, &bbIndexData_);
 		}
 		else{
 			uint32_t stage =asyncThread_.GetStage();
@@ -122,9 +122,13 @@ void ViewerContext::Update(ViewerStateParams* pStateParams,double deltaTime, dou
 			ResourceManager *pResourceManager = pApp_->GetResourceManager();
 			pResourceManager->UploadVertexBuffer(indexedVertexData_.data(), indexedVertexData_.size(), sizeof(indexedVertexData_[0]), &vertexBuffers_[0]);
 			pResourceManager->UploadIndexBuffer(indexData_.data(), indexData_.size(), &indexBuffers_[0]);
+			pResourceManager->UploadVertexBuffer(bbVertexData_.data(), bbVertexData_.size(), sizeof(bbVertexData_[0]), &vertexBuffers_[1]);
+			pResourceManager->UploadIndexBuffer(bbIndexData_.data(), bbIndexData_.size(), &indexBuffers_[1]);
 			buffersUploaded_ = true;
 			indexedVertexData_.resize(0);
 			indexData_.resize(0);
+			bbVertexData_.resize(0);
+			bbIndexData_.resize(0);
 		}
 		CenterMesh();
 		ScaleMesh();
@@ -169,7 +173,8 @@ void ViewerContext::Render(D3D12_CPU_DESCRIPTOR_HANDLE rtv,
 
 		pCommandList->BeginRenderPass(1, &rtvDescriptor, &dsvDescriptor, D3D12_RENDER_PASS_FLAG_NONE);
 		if(buffersUploaded_){
-			OccluderMesh meshInfo = occluderOffsetData_.at(occluderRankingData_.at(meshIdx).second);
+			size_t meshIndex = occluderRankingData_.at(meshIdx).second;
+			OccluderMesh meshInfo = occluderOffsetData_.at(meshIndex);
 			DirectX::XMMATRIX mvpMatrix = DirectX::XMMatrixMultiply(modelMatrix_, DirectX::XMMatrixScaling(zoom_, zoom_, zoom_));
 			mvpMatrix = DirectX::XMMatrixMultiply(mvpMatrix, viewMatrix_);
 			mvpMatrix = DirectX::XMMatrixMultiply(mvpMatrix, projectionMatrix_);
@@ -181,18 +186,18 @@ void ViewerContext::Render(D3D12_CPU_DESCRIPTOR_HANDLE rtv,
 			pCommandList->IASetVertexBuffers(0, 1, &vertexBuffers_[0].vertexView);
 			pCommandList->IASetIndexBuffer(&indexBuffers_[0].indexView);
 			pCommandList->DrawIndexedInstanced((UINT)meshInfo.numIndicesTotal, 1, meshInfo.indexOffset, 0, 0);
-		}
 
+
+			if(boundingBoxVisible_){
+				pCommandList->SetGraphicsRootSignature(pipelines_[1].pRootSignature);
+				pCommandList->SetPipelineState(pipelines_[1].pPipelineState);
+				pCommandList->IASetPrimitiveTopology(pipelines_[1].primitiveTopology);
+				pCommandList->IASetVertexBuffers(0, 1, &vertexBuffers_[1].vertexView);
+				pCommandList->IASetIndexBuffer(&indexBuffers_[1].indexView);
+				pCommandList->DrawIndexedInstanced(24, 1, meshIndex*24, 0, 0);
+			}
+		}
 		pCommandList->EndRenderPass();
-
-		if(boundingBoxVisible_){
-			pCommandList->SetGraphicsRootSignature(pipelines_[1].pRootSignature);
-			pCommandList->SetPipelineState(pipelines_[1].pPipelineState);
-			pCommandList->IASetPrimitiveTopology(pipelines_[1].primitiveTopology);
-			pCommandList->IASetVertexBuffers(0, 1, &vertexBuffers_[1].vertexView);
-			pCommandList->IASetIndexBuffer(&indexBuffers_[1].indexView);
-			pCommandList->DrawIndexedInstanced((UINT)indexBuffers_[1].indexView.SizeInBytes/sizeof(uint32_t), 1, 0, 0, 0);
-		}
 	
 
 }
@@ -260,6 +265,8 @@ void ViewerContext::ProcessObjFile(
 	const std::string &filePath,
 	std::vector<VertexPosTexNorm> *pIndexedVertexData,
 	std::vector<uint32_t> *pIndexData,
+	std::vector<VertexPos> *pBBBVertexData,
+	std::vector<uint32_t> *pBBIndexData,
 	JobState &state){
 
 	std::vector<MaterialInfo> materialInfoData;
@@ -313,8 +320,6 @@ void ViewerContext::ProcessObjFile(
  
 	std::vector<AABB> maxBoundingBoxData = {};
 	std::vector<AABB> minBoundingBoxData = {};
-	//std::vector<VertexPos> indexedBBVertexData = {};
-	//std::vector<uint32_t> bbIndexData = {};
 	state.stage = 2;
 	for(size_t idx=0; idx<occluderOffsetData_.size(); ++idx){
 		state.percent = (float)idx/occluderOffsetData_.size();
@@ -326,12 +331,11 @@ void ViewerContext::ProcessObjFile(
 		size_t minLimit = (size_t)std::pow(2, (size_t)(exp/4));
 		MeshTools::GenerateAABBData(pIndexedVertexData->data(), pIndexedVertexData->size(), pIndexData->data()+pMeshInfo->indexOffset, pMeshInfo->numIndices, maxLimit, &maxBoundingBoxData);
 		MeshTools::GenerateAABBData(pIndexedVertexData->data(), pIndexedVertexData->size(), pIndexData->data()+pMeshInfo->indexOffset, pMeshInfo->numIndices, minLimit, &minBoundingBoxData);
-		//MeshTools::GenerateAABBWireFrame(maxBoundingBoxData,indexedBBVertexData, bbIndexData);
+		MeshTools::PushBackMeshAABBWireFrame(maxBoundingBoxData.back(), pBBBVertexData, pBBIndexData);
 		float occluderScore = MeshTools::GetOccluderPotential(minBoundingBoxData, maxBoundingBoxData, pMeshInfo->numIndicesTotal/3);
 		AABB boundingBox = maxBoundingBoxData.back();
 		pMeshInfo->occluderScore = occluderScore;
 		pMeshInfo->boundingBox = boundingBox;
-		//DebugPrint("Occluder Potential: %f\n", pMeshInfo->occluderScore);	
 		itemList[idx] = pMeshInfo->meshId;
 		lengthScaleData[idx] = boundingBox.GetDiagonal();
 		occluderScoreData[idx] = (occluderScore)? occluderScore*boundingBox.GetAABBSurfaceArea() : 0.0f;
