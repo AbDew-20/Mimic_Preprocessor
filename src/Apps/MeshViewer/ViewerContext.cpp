@@ -226,16 +226,19 @@ void ViewerContext::ScaleMesh(){
 
 void ViewerContext::CenterMesh(){
 	using namespace DirectX;
-	enum Direction:uint8_t{
-		X=0,
-		Y=1,
-		Z=2
-	};
 	AABB boundingBox = occluderOffsetData_.at(occluderRankingData_.at(meshIdx).second).boundingBox;
 	XMFLOAT3 bbCenter;
 	boundingBox.Center(&bbCenter);
 	XMMATRIX translationMatrix= XMMatrixTranslationFromVector(XMVectorNegate(XMLoadFloat3(&bbCenter)));
+	translationMatrix = XMMatrixMultiply(translationMatrix, XMMatrixTranslation(0.0f, 0.0f, bbCenter.z-boundingBox.min.z));
 	modelMatrix_ = translationMatrix;
+
+	//enum Direction:uint8_t{
+	//	X=0,
+	//	Y=1,
+	//	Z=2
+	//};
+
 
 	//XMFLOAT3 bbEdgeLength;
 	//XMStoreFloat3(&bbEdgeLength, XMVectorSubtract(XMLoadFloat3(&boundingBox.max), XMLoadFloat3(&boundingBox.min)));
