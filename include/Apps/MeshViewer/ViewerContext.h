@@ -31,10 +31,10 @@ struct MappedInput;
 class Application;
 class ViewerContext{
 public:
-	ViewerContext(Application* pApp_, std::string &filePath, AsyncJob &asyncThread);
-	void Update(ViewerStateParams* stateParams,double deltaTime, double totalTime);
+	ViewerContext(Application* pApp, const std::string &filePath, AsyncJob &asyncThread);
+	void Update(ViewerStateParams &stateParams,double deltaTime, double totalTime);
 	void Render(D3D12_CPU_DESCRIPTOR_HANDLE rtv, D3D12_CPU_DESCRIPTOR_HANDLE dsv, ID3D12GraphicsCommandList4* pCommandList,double deltaTime);
-	void HandleInput(MappedInput *mappedInput);
+	void HandleInput(MappedInput &mappedInput);
 	void Load();
 	void Unload();
 protected:
@@ -51,10 +51,10 @@ private:
 	void AnalyzeSceneData(DataAnalysis::DataAnalyzer &analyzer);
 	void ProcessObjFile(
 		const std::string &filePath,
-		std::vector<VertexPosTexNorm> *pIndexedVertexData,
-		std::vector<uint32_t> *pIndexData,
-		std::vector<VertexPos> *pBBBVertexData,
-		std::vector<uint32_t> *pBBIndexData,
+		std::vector<VertexPosTexNorm> &indexedVertexData,
+		std::vector<uint32_t> &indexData,
+		std::vector<VertexPos> &bbVertexData,
+		std::vector<uint32_t> &bbIndexData,
 		JobState &state);
 
 	inline constexpr float GetCameraSpeed(){ return 1.0f; }

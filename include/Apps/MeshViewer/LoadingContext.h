@@ -10,8 +10,8 @@ struct LoadingStateParams{
 };
 class LoadingContext{
 public:
-	LoadingContext(std::string &label);
-	void Update(LoadingStateParams* stateParams,double deltaTime);
+	LoadingContext(const std::string &label);
+	void Update(LoadingStateParams &stateParams, double deltaTime);
 	void Render(D3D12_CPU_DESCRIPTOR_HANDLE rtv, D3D12_CPU_DESCRIPTOR_HANDLE dsv, ID3D12GraphicsCommandList4* pCommandList,double deltaTime);
 protected:
 

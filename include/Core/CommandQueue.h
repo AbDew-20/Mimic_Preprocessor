@@ -10,7 +10,7 @@ public:
 
 	ID3D12GraphicsCommandList4 *GetCommandList();
 
-	uint64_t ExecuteCommandList(ID3D12GraphicsCommandList4 *commandList);
+	uint64_t ExecuteCommandList(ID3D12GraphicsCommandList4 *pCommandList);
 	uint64_t Signal();
 	bool IsFenceComplete(uint64_t fenceValue);
 	void WaitForFenceValue(uint64_t fenceValue);

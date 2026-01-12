@@ -9,7 +9,7 @@ InputManager::InputManager(){
 }
 
 
-void InputManager::LoadContexts(std::string &contextList, std::string &directory, size_t (*GetActionId)(std::string_view), size_t (*GetStateId)(std::string_view)){
+void InputManager::LoadContexts(const std::string &contextList, const std::string &directory, size_t (*GetActionId)(std::string_view), size_t (*GetStateId)(std::string_view)){
 	std::vector<char> buffer;
 	std::string filePath = "";
 	filePath.append(directory);
@@ -45,13 +45,13 @@ void InputManager::LoadContexts(std::string &contextList, std::string &directory
 		filePath="";
 		filePath.append(directory);
 		filePath.append(fileName);
-		ParseContext(filePath, &actionMap, &stateMap, GetActionId, GetStateId);
+		ParseContext(filePath, actionMap, stateMap, GetActionId, GetStateId);
 		actionMaps_.push_back(std::move(actionMap));
 		stateMaps_.push_back(std::move(stateMap));
 	}
 }
 
-void InputManager::PushContext(std::string &name){
+void InputManager::PushContext(const std::string &name){
 	auto iter = contextList_.find(name);
 	if(iter!=contextList_.end()){
 		activeContexts_.push_front(iter->second);
@@ -69,11 +69,11 @@ void InputManager::Clear(){
 void InputManager::Dispatch(){
 	MappedInput input = currentMappedInput_;
 	for(auto iter = callbackList_.begin(); iter!=callbackList_.end(); ++iter){
-		(iter->second)(&input);
+		(iter->second)(input);
 	}
 }
 
-void InputManager::AddCallback(std::function<void(MappedInput *)> callback, int priority){
+void InputManager::AddCallback(std::function<void(MappedInput &)> callback, int priority){
 	callbackList_.insert(std::make_pair(priority, callback));
 }
 
@@ -81,13 +81,13 @@ void InputManager::SetKeyState(KeyCodes key, bool pressed, bool previouslyPresse
 	size_t action;
 	size_t state;
 	if(pressed&&!previouslyPressed){
-		if(MappedAction(key, &action)){
+		if(MappedAction(key, action)){
 			currentMappedInput_.Actions.insert(action);
 			return;
 		}
 	}
 	if(pressed){
-		if(MappedState(key, &state)){
+		if(MappedState(key, state)){
 			currentMappedInput_.States.insert(state);
 			return;
 		}
@@ -96,9 +96,9 @@ void InputManager::SetKeyState(KeyCodes key, bool pressed, bool previouslyPresse
 	ConsumeMapped(key);
 }
 
-void InputManager::ParseContext(std::string &filePath,
-	std::unordered_map<KeyCodes, size_t> *pActionMap,
-	std::unordered_map<KeyCodes, size_t> *pStateMap,
+void InputManager::ParseContext(const std::string &filePath,
+	std::unordered_map<KeyCodes, size_t> &outActionMap,
+	std::unordered_map<KeyCodes, size_t> &outStateMap,
 	size_t (*GetActionId)(std::string_view),
 	size_t (*GetStateId)(std::string_view)){
 
@@ -126,7 +126,7 @@ void InputManager::ParseContext(std::string &filePath,
 		if(iter!=keyLookup.end()){
 			key = iter->second;
 		}
-		(*pActionMap)[key] = action;
+		outActionMap[key] = action;
 	}
 	token = lines.at(numActions+1);
 	size_t numStates = 0;
@@ -145,28 +145,28 @@ void InputManager::ParseContext(std::string &filePath,
 		if(iter!=keyLookup.end()){
 			key = iter->second;
 		}
-		(*pStateMap)[key] = state;
+		outStateMap[key] = state;
 	}
 
 }
 
 
-bool InputManager::MappedAction(KeyCodes button, size_t *pAction){
+bool InputManager::MappedAction(KeyCodes button, size_t &outAction){
 	for(auto iter = activeContexts_.begin(); iter!=activeContexts_.end(); ++iter){
 		auto mapIter = actionMaps_[*iter].find(button);
 		if(mapIter!=actionMaps_[*iter].end()){
-			*pAction = mapIter->second;
+			outAction = mapIter->second;
 			return true;
 		}
 	}
 	return false;
 }
 
-bool InputManager::MappedState(KeyCodes button, size_t *pState){
+bool InputManager::MappedState(KeyCodes button, size_t &outState){
 	for(auto iter = activeContexts_.begin(); iter!=activeContexts_.end(); ++iter){
 		auto mapIter = stateMaps_[*iter].find(button);
 		if(mapIter!=stateMaps_[*iter].end()){
-			*pState = mapIter->second;
+			outState = mapIter->second;
 			return true;
 		}
 	}
@@ -178,11 +178,11 @@ void InputManager::ConsumeMapped(KeyCodes button){
 	size_t action;
 	size_t state;
 
-	if(MappedAction(button, &action)){
+	if(MappedAction(button, action)){
 		currentMappedInput_.ConsumeAction(action);
 	}
 
-	if(MappedState(button, &state)){
+	if(MappedState(button, state)){
 	
 		currentMappedInput_.ConsumeState(state);
 	}

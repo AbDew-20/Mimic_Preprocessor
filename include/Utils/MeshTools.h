@@ -17,14 +17,14 @@ namespace MeshTools{
 		size_t limit,
 		std::vector<AABB> *pBoundingBoxData);
 	void GenerateAABBWireFrame(const std::vector<AABB> &boundingBoxData,
-		std::vector<VertexPos> *pVertexData,
-		std::vector<uint32_t> *pIndexData);
+		std::vector<VertexPos> &vertexData,
+		std::vector<uint32_t> &indexData);
 	float GetOccluderPotential(const std::vector<AABB> &minBoundingBoxData,
 		const std::vector<AABB> &maxBoundingBoxData,
 		size_t numTriangles);
 	AABB GetAABB(const VertexPosTexNorm *pIndexedVertexData, uint64_t numVertices);
 	void PushBackMeshAABBWireFrame(const AABB &boundingBox,
-		std::vector<VertexPos> *pVertexData,
-		std::vector<uint32_t> *pIndexData);
+		std::vector<VertexPos> &vertexData,
+		std::vector<uint32_t> &indexData);
 
 }

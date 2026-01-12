@@ -6,7 +6,7 @@
 #include <Utils/MeshTools.h>
 
 
-ViewerContext::ViewerContext(Application* pApp, std::string &filePath, AsyncJob &asyncThread):
+ViewerContext::ViewerContext(Application* pApp, const std::string &filePath, AsyncJob &asyncThread):
 	filePath_(filePath),
 	asyncThread_(asyncThread),
 	pApp_(pApp),
@@ -31,33 +31,33 @@ void ViewerContext::Unload(){
 	SafeRelease(vertexBuffers_[1].pBuffer);
 	SafeRelease(indexBuffers_[1].pBuffer);
 }
-void ViewerContext::HandleInput(MappedInput *mappedInput){
+void ViewerContext::HandleInput(MappedInput &mappedInput){
 	using namespace InputContext;
-	for(auto iter = mappedInput->Actions.begin(); iter!=mappedInput->Actions.end(); ++iter){
+	for(auto iter = mappedInput.Actions.begin(); iter!=mappedInput.Actions.end(); ++iter){
 		switch(static_cast<Actions>(*iter)){
 		case Actions::MoveCameraUp:
 			cameraPos_.y += 0.1;
-			mappedInput->ConsumeAction((size_t)Actions::MoveCameraUp);
+			mappedInput.ConsumeAction((size_t)Actions::MoveCameraUp);
 			break;
 		case Actions::MoveCameraDown:
 			cameraPos_.y -= 0.1;
-			mappedInput->ConsumeAction((size_t)Actions::MoveCameraDown);
+			mappedInput.ConsumeAction((size_t)Actions::MoveCameraDown);
 			break;
 		case Actions::MoveCameraLeft:
 			cameraPos_.x -= 0.1;
-			mappedInput->ConsumeAction((size_t)Actions::MoveCameraLeft);
+			mappedInput.ConsumeAction((size_t)Actions::MoveCameraLeft);
 			break;
 		case Actions::MoveCameraRight:
 			cameraPos_.x += 0.1;
-			mappedInput->ConsumeAction((size_t)Actions::MoveCameraRight);
+			mappedInput.ConsumeAction((size_t)Actions::MoveCameraRight);
 			break;
 		case Actions::ZoomIn:
 			zoom_ *= 2;
-			mappedInput->ConsumeAction((size_t)Actions::ZoomIn);
+			mappedInput.ConsumeAction((size_t)Actions::ZoomIn);
 			break;
 		case Actions::ZoomOut:
 			zoom_ *= 0.5;
-			mappedInput->ConsumeAction((size_t)Actions::ZoomOut);
+			mappedInput.ConsumeAction((size_t)Actions::ZoomOut);
 			break;
 		case Actions::CycleMeshUp:
 			if(meshIdx==occluderRankingData_.size()-1){
@@ -67,7 +67,7 @@ void ViewerContext::HandleInput(MappedInput *mappedInput){
 				meshIdx++;
 			}
 			DebugPrint("Occluder Score: %f\n", occluderRankingData_.at(meshIdx).first);
-			mappedInput->ConsumeAction((size_t)Actions::CycleMeshUp);
+			mappedInput.ConsumeAction((size_t)Actions::CycleMeshUp);
 		break;
 		case Actions::CycleMeshDown:
 			if(meshIdx==0){
@@ -77,42 +77,42 @@ void ViewerContext::HandleInput(MappedInput *mappedInput){
 				meshIdx--;
 			}
 			DebugPrint("Occluder Score: %f\n", occluderRankingData_.at(meshIdx).first);
-			mappedInput->ConsumeAction((size_t)Actions::CycleMeshDown);
+			mappedInput.ConsumeAction((size_t)Actions::CycleMeshDown);
 		break;
 
 		}
-		if(auto iterator = mappedInput->Actions.begin()==mappedInput->Actions.end()){
+		if(auto iterator = mappedInput.Actions.begin()==mappedInput.Actions.end()){
 			break;
 		}
 	
 	}
-	const auto statesEnd = mappedInput->States.end();
+	const auto statesEnd = mappedInput.States.end();
 	cameraVelocity_.y = 0.0f;
 	cameraVelocity_.x = 0.0f;
-	cameraVelocity_.y+= (mappedInput->States.find((size_t)States::CameraMovingUp)!=statesEnd) ? +GetCameraSpeed() : 0.0f;
-	cameraVelocity_.y+= (mappedInput->States.find((size_t)States::CameraMovingDown)!=statesEnd) ? -GetCameraSpeed() : 0.0f;
-	cameraVelocity_.x+= (mappedInput->States.find((size_t)States::CameraMovingRight)!=statesEnd) ? +GetCameraSpeed() : 0.0f;
-	cameraVelocity_.x+= (mappedInput->States.find((size_t)States::CameraMovingLeft)!=statesEnd) ? -GetCameraSpeed() : 0.0f;
+	cameraVelocity_.y+= (mappedInput.States.find((size_t)States::CameraMovingUp)!=statesEnd) ? +GetCameraSpeed() : 0.0f;
+	cameraVelocity_.y+= (mappedInput.States.find((size_t)States::CameraMovingDown)!=statesEnd) ? -GetCameraSpeed() : 0.0f;
+	cameraVelocity_.x+= (mappedInput.States.find((size_t)States::CameraMovingRight)!=statesEnd) ? +GetCameraSpeed() : 0.0f;
+	cameraVelocity_.x+= (mappedInput.States.find((size_t)States::CameraMovingLeft)!=statesEnd) ? -GetCameraSpeed() : 0.0f;
 }
 
-void ViewerContext::Update(ViewerStateParams* pStateParams,double deltaTime, double totalTime){
+void ViewerContext::Update(ViewerStateParams &stateParams,double deltaTime, double totalTime){
 	if(!fileLoaded_){
-		if(!pStateParams->loading){
-			pStateParams->asyncStarted = true;
-			pStateParams->workType = "Loading File";
-			asyncThread_.Start(&ViewerContext::ProcessObjFile,std::ref(fileLoaded_), this, std::cref(filePath_), &indexedVertexData_, &indexData_, &bbVertexData_, &bbIndexData_);
+		if(!stateParams.loading){
+			stateParams.asyncStarted = true;
+			stateParams.workType = "Loading File";
+			asyncThread_.Start(&ViewerContext::ProcessObjFile,std::ref(fileLoaded_), this, std::cref(filePath_), std::ref(indexedVertexData_), std::ref(indexData_), std::ref(bbVertexData_), std::ref(bbIndexData_));
 		}
 		else{
 			uint32_t stage =asyncThread_.GetStage();
 			switch(stage){
 			case 0:
-			pStateParams->workType = "Parsing File";
+			stateParams.workType = "Parsing File";
 				break;
 			case 1:
-			pStateParams->workType = "Grouping Meshes";
+			stateParams.workType = "Grouping Meshes";
 			break;
 			case 2:
-			pStateParams->workType = "Calculating Rating";
+			stateParams.workType = "Calculating Rating";
 			break;
 			}
 		}
@@ -139,7 +139,7 @@ void ViewerContext::Update(ViewerStateParams* pStateParams,double deltaTime, dou
 		const DirectX::XMVECTOR upDirection = DirectX::XMVectorSet(0, 1, 0, 0);
 		viewMatrix_ = DirectX::XMMatrixLookToLH(eyePostition, DirectX::XMVectorSet(0, 0, 1, 0), upDirection);
 
-		float aspectRatio = pStateParams->clientWidth/static_cast<float>(pStateParams->clientHeight);
+		float aspectRatio = stateParams.clientWidth/static_cast<float>(stateParams.clientHeight);
 		projectionMatrix_ = DirectX::XMMatrixPerspectiveFovLH(DirectX::XMConvertToRadians(45.0f), aspectRatio, 0.1f, 100.0f);
 
 
@@ -209,7 +209,7 @@ void ViewerContext::ScaleMesh(){
 		XMFLOAT2 min;
 	};
 	std::vector<VertexPos> bbVertices;
-	boundingBox.Vertices(&bbVertices);
+	boundingBox.GetVertices(bbVertices);
 	XMMATRIX mvp = XMMatrixMultiply(modelMatrix_, viewMatrix_);
 	mvp = XMMatrixMultiply(mvp, projectionMatrix_);
 	BoundingBox2D bbScreen = {XMFLOAT2(-FLT_MAX,-FLT_MAX),XMFLOAT2(FLT_MAX,FLT_MAX)};
@@ -233,7 +233,7 @@ void ViewerContext::CenterMesh(){
 	using namespace DirectX;
 	AABB boundingBox = occluderOffsetData_.at(occluderRankingData_.at(meshIdx).second).boundingBox;
 	XMFLOAT3 bbCenter;
-	boundingBox.Center(&bbCenter);
+	boundingBox.GetCenter(bbCenter);
 	XMMATRIX translationMatrix= XMMatrixTranslationFromVector(XMVectorNegate(XMLoadFloat3(&bbCenter)));
 	translationMatrix = XMMatrixMultiply(translationMatrix, XMMatrixTranslation(0.0f, 0.0f, bbCenter.z-boundingBox.min.z));
 	modelMatrix_ = translationMatrix;
@@ -263,10 +263,10 @@ void ViewerContext::CenterMesh(){
 }
 void ViewerContext::ProcessObjFile(
 	const std::string &filePath,
-	std::vector<VertexPosTexNorm> *pIndexedVertexData,
-	std::vector<uint32_t> *pIndexData,
-	std::vector<VertexPos> *pBBBVertexData,
-	std::vector<uint32_t> *pBBIndexData,
+	std::vector<VertexPosTexNorm> &indexedVertexData,
+	std::vector<uint32_t> &indexData,
+	std::vector<VertexPos> &bbVertexData,
+	std::vector<uint32_t> &bbIndexData,
 	JobState &state){
 
 	std::vector<MaterialInfo> materialInfoData;
@@ -275,10 +275,10 @@ void ViewerContext::ProcessObjFile(
 	state.percent = -1.0f;
 	FileTools::Obj obj(filePath_);
 	obj.MapFile();
-	obj.ParseObjFile(pIndexedVertexData, pIndexData, &subMeshData_, &materialInfoData, &materialIdMap);
+	obj.ParseObjFile(indexedVertexData, indexData, subMeshData_, materialInfoData, materialIdMap);
 	obj.CloseFile();
 	
-	DebugPrint("Triangles: %i\n", pIndexData->size());
+	DebugPrint("Triangles: %i\n", indexData.size());
 	state.stage = 1;
 	std::string currObject = "";
 	std::string currGroup = "";
@@ -329,15 +329,15 @@ void ViewerContext::ProcessObjFile(
 		double exp = std::log2((double)pMeshInfo->numIndices/30.0);
 		size_t maxLimit = (size_t)std::pow(2, (size_t)exp);
 		size_t minLimit = (size_t)std::pow(2, (size_t)(exp/4));
-		MeshTools::GenerateAABBData(pIndexedVertexData->data(), pIndexedVertexData->size(), pIndexData->data()+pMeshInfo->indexOffset, pMeshInfo->numIndices, maxLimit, &maxBoundingBoxData);
-		MeshTools::GenerateAABBData(pIndexedVertexData->data(), pIndexedVertexData->size(), pIndexData->data()+pMeshInfo->indexOffset, pMeshInfo->numIndices, minLimit, &minBoundingBoxData);
-		MeshTools::PushBackMeshAABBWireFrame(maxBoundingBoxData.back(), pBBBVertexData, pBBIndexData);
+		MeshTools::GenerateAABBData(indexedVertexData.data(), indexedVertexData.size(), indexData.data()+pMeshInfo->indexOffset, pMeshInfo->numIndices, maxLimit, &maxBoundingBoxData);
+		MeshTools::GenerateAABBData(indexedVertexData.data(), indexedVertexData.size(), indexData.data()+pMeshInfo->indexOffset, pMeshInfo->numIndices, minLimit, &minBoundingBoxData);
+		MeshTools::PushBackMeshAABBWireFrame(maxBoundingBoxData.back(), bbVertexData, bbIndexData);
 		float occluderScore = MeshTools::GetOccluderPotential(minBoundingBoxData, maxBoundingBoxData, pMeshInfo->numIndicesTotal/3);
 		AABB boundingBox = maxBoundingBoxData.back();
 		pMeshInfo->occluderScore = occluderScore;
 		pMeshInfo->boundingBox = boundingBox;
 		itemList[idx] = pMeshInfo->meshId;
-		lengthScaleData[idx] = boundingBox.GetDiagonal();
+		lengthScaleData[idx] = boundingBox.GetDiagonalLength();
 		occluderScoreData[idx] = (occluderScore)? occluderScore*boundingBox.GetAABBSurfaceArea() : 0.0f;
 		triangleNumData[idx] = pMeshInfo->numIndicesTotal/3;
 	}

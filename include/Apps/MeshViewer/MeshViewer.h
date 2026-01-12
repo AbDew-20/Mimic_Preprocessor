@@ -53,7 +53,7 @@ private:
 	void CreateDepthBuffer(int width, int height);
 
 
-	void HandleInput(MappedInput *input);
+	void HandleInput(MappedInput &input);
 
 	void InitImgui();
 	void DestroyImgui();

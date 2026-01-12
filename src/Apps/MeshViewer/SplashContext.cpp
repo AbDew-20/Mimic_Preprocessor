@@ -8,9 +8,9 @@ SplashContext::SplashContext(){
 }
 
 
-void SplashContext::Update(SplashStateParams* pStateParams,double deltaTime){
+void SplashContext::Update(SplashStateParams &stateParams,double deltaTime){
 	ImGuiWindowFlags flags = ImGuiWindowFlags_NoResize|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoTitleBar;
-	ImGui::SetNextWindowPos(ImVec2(pStateParams->clientWidth/2, pStateParams->clientHeight/2),0, ImVec2(0.5f,0.5f));
+	ImGui::SetNextWindowPos(ImVec2(stateParams.clientWidth/2, stateParams.clientHeight/2),0, ImVec2(0.5f,0.5f));
 	ImGui::Begin("Splash", nullptr ,flags);
 	
 	if(ImGui::Button("Choose File")){
@@ -26,7 +26,7 @@ void SplashContext::Update(SplashStateParams* pStateParams,double deltaTime){
 					PWSTR filePath = NULL;
 					pItem->GetDisplayName(SIGDN_FILESYSPATH, &filePath);
 					std::wstring tmp(filePath);
-					WStringToString(tmp, &pStateParams->fileName);
+					WStringToString(tmp, stateParams.fileName);
 					
 
 					CoTaskMemFree(filePath);
@@ -37,9 +37,9 @@ void SplashContext::Update(SplashStateParams* pStateParams,double deltaTime){
 		}
 		::CoUninitialize();
 	}
-	if(pStateParams->fileName!=""){
-		ImGui::Text(pStateParams->fileName.data());
-		pStateParams->fileSelected= ImGui::Button("Load File");
+	if(stateParams.fileName!=""){
+		ImGui::Text(stateParams.fileName.data());
+		stateParams.fileSelected= ImGui::Button("Load File");
 	}
 	ImGui::End();
 

@@ -1,19 +1,19 @@
 #include <Apps/MeshViewer/LoadingContext.h>
 #include <imgui.h>
 
-LoadingContext::LoadingContext(std::string &label):
+LoadingContext::LoadingContext(const std::string &label):
 	label_(label)
 {
 }
 
 
-void LoadingContext::Update(LoadingStateParams* pStateParams, double deltatime){
+void LoadingContext::Update(LoadingStateParams &stateParams, double deltatime){
 	ImGuiWindowFlags flags = ImGuiWindowFlags_NoResize|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoTitleBar;
-	ImGui::SetNextWindowPos(ImVec2(pStateParams->clientWidth/2, pStateParams->clientHeight/2),0, ImVec2(0.5f,0.5f));
+	ImGui::SetNextWindowPos(ImVec2(stateParams.clientWidth/2, stateParams.clientHeight/2),0, ImVec2(0.5f,0.5f));
 	ImGui::Begin("Loading", nullptr ,flags);
-	ImGui::Text(pStateParams->label.data());
-	if(pStateParams->percent>0){
-		ImGui::ProgressBar(pStateParams->percent, ImVec2(-1, 0));
+	ImGui::Text(stateParams.label.data());
+	if(stateParams.percent>0){
+		ImGui::ProgressBar(stateParams.percent, ImVec2(-1, 0));
 	}
 	ImGui::End();
 }

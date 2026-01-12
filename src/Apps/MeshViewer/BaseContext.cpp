@@ -24,6 +24,6 @@ void BaseContext::Update(double deltaTime){
 	
 }
 
-void BaseContext::HandleInput(MappedInput *mappedInput){
+void BaseContext::HandleInput(MappedInput &mappedInput){
 
 }

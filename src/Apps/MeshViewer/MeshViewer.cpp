@@ -41,7 +41,7 @@ bool MeshViewer::LoadContent(){
 	pInputManager->LoadContexts(fileName, directory, InputContext::GetActionId, InputContext::GetStateId);
 	std::string context = "MeshContext";
 	pInputManager->PushContext(context);
-	pInputManager->AddCallback([this](MappedInput *input){return this->HandleInput(input);}, 0);
+	pInputManager->AddCallback([this](MappedInput &input){return this->HandleInput(input);}, 0);
 	return true;
 }
 
@@ -67,7 +67,7 @@ void MeshViewer::TransitionState(){
 					InputManager *pInputmanager = pApp_->GetInputManager();
 					std::string contextName = "ViewerContext";
 					pInputmanager->PushContext(contextName);
-					pInputmanager->AddCallback([this](MappedInput *mappedInput){this->GetContext<ViewerContext>()->HandleInput(mappedInput);}, 1);
+					pInputmanager->AddCallback([this](MappedInput &mappedInput){this->GetContext<ViewerContext>()->HandleInput(mappedInput);}, 1);
 				}
 			}
 			else if constexpr(std::is_same_v<T, ViewerState>){
@@ -109,21 +109,21 @@ void MeshViewer::OnKeyPress(KeyCodes key, bool shift, bool ctl, bool alt){
 void MeshViewer::OnKeyRelease(KeyCodes key, bool shift, bool ctl, bool alt){
 }
 
-void MeshViewer::HandleInput(MappedInput *input){
+void MeshViewer::HandleInput(MappedInput &input){
 	using namespace InputContext;
-	for(auto iter = input->Actions.begin(); iter!=input->Actions.end(); ++iter){
+	for(auto iter = input.Actions.begin(); iter!=input.Actions.end(); ++iter){
 		switch(static_cast<Actions>(*iter)){
 		case Actions::ToggleFullscren:
 			pWindow->ToggleFullscreen();
-			input->ConsumeAction((size_t)Actions::ToggleFullscren);
+			input.ConsumeAction((size_t)Actions::ToggleFullscren);
 			break;
 		case Actions::ToggleVsync:
 			pWindow->ToggleVSync();
-			input->ConsumeAction((size_t)Actions::ToggleVsync);
+			input.ConsumeAction((size_t)Actions::ToggleVsync);
 			break;
 		}
 
-		if(auto iterator = input->Actions.begin()==input->Actions.end()){
+		if(auto iterator = input.Actions.begin()==input.Actions.end()){
 			break;
 		}
 	
@@ -143,7 +143,7 @@ void MeshViewer::OnUpdate(double deltaTime, double totalTime){
 				SplashContext *pSplashContext = GetContext<SplashContext>();
 				assert(pSplashContext !=nullptr&&"Context Missing");
 				SplashStateParams splashParams = {this->GetClientWidth(), this->GetClientHeight(), args.fileSelected, args.filePath};
-				pSplashContext->Update(&splashParams, deltaTime);
+				pSplashContext->Update(splashParams, deltaTime);
 				
 			}
 			else if constexpr(std::is_same_v<T, ViewerState>){
@@ -151,13 +151,13 @@ void MeshViewer::OnUpdate(double deltaTime, double totalTime){
 				assert(pViewerContext!=nullptr && "Context Missing");
 
 				ViewerStateParams viewerParams = {this->GetClientWidth(), this->GetClientHeight(), (args.mode==ViewerState::Mode::LOADING), args.asyncStarted, args.workType};
-				pViewerContext->Update(&viewerParams, deltaTime, totalTime);
+				pViewerContext->Update(viewerParams, deltaTime, totalTime);
 				if(args.mode==ViewerState::Mode::LOADING){
 					LoadingContext *pLoadingContext = GetContext<LoadingContext>();
 					assert(pLoadingContext!=nullptr&&"Context Missing");
 
 					LoadingStateParams loadingParams = {this->GetClientWidth(), this->GetClientHeight(), this->asyncThread_.GetPercent(), args.workType};
-					pLoadingContext->Update(&loadingParams, deltaTime);
+					pLoadingContext->Update(loadingParams, deltaTime);
 					args.asyncFinished = this->asyncThread_.GetCompleted();
 				}
 			

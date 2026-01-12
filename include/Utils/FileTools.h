@@ -40,11 +40,11 @@ namespace FileTools{
 
 		void MapFile();
 		void ParseObjFile(
-			std::vector<VertexPosTexNorm> *pIndexedVertexBuffer,
-			std::vector<uint32_t> *pIndexBuffer,
-			std::vector<SubMesh> *pMeshOffsetData,
-			std::vector<MaterialInfo> *pMatierialInfoData,
-			std::unordered_map<std::string, size_t> *pMaterialIdMap );
+			std::vector<VertexPosTexNorm> &indexedVertexBuffer,
+			std::vector<uint32_t> &indexBuffer,
+			std::vector<SubMesh> &meshOffsetData,
+			std::vector<MaterialInfo> &matierialInfoData,
+			std::unordered_map<std::string, size_t> &materialIdMap );
 		void CloseFile();
 		
 
@@ -55,8 +55,8 @@ namespace FileTools{
 		void ParseLines(size_t startOffset, size_t *pOutStartOffset,  std::vector<std::string_view> *pLines) const;
 		void GenerateIndexBuffer(
 			const std::vector<VertexPosTexNorm> &interleavedBuffer,
-			std::vector<VertexPosTexNorm> *pIndexedInterleavedBuffer,
-			std::vector<uint32_t> *pIndexBuffer) const;
+			std::vector<VertexPosTexNorm> &indexedInterleavedBuffer,
+			std::vector<uint32_t> &indexBuffer) const;
 
 		void LoadVertexData(
 			const std::vector<std::string_view> &vertTokenList,
@@ -68,9 +68,9 @@ namespace FileTools{
 			const std::vector<SubMesh> &alphaTestedMeshData,
 			const std::vector<VertexPosTexNorm> &alphaTestedVertexData,
 			const std::vector<uint32_t> &alphaTestedIndexData,
-			std::vector<VertexPosTexNorm> *pIndexedVertexData,
-			std::vector<uint32_t> *pIndexData,
-			std::vector<SubMesh> *pMeshOffsetData) const;
+			std::vector<VertexPosTexNorm> &indexedVertexData,
+			std::vector<uint32_t> &indexData,
+			std::vector<SubMesh> &meshOffsetData) const;
 
 
 		DWORD allocGranularity_;
@@ -90,7 +90,7 @@ namespace FileTools{
 	class Mtl{
 	public:
 		Mtl(const std::string mtlFile, const std::string directory);
-		void ParseMtlFile(std::vector<MaterialInfo> *pMatierialInfoData, std::unordered_map<std::string, size_t> *pMaterialIdMap);
+		void ParseMtlFile(std::vector<MaterialInfo> &matierialInfoData, std::unordered_map<std::string, size_t> &materialIdMap);
 	protected:
 
 	private:

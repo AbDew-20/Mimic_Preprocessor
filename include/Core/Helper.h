@@ -29,15 +29,15 @@ inline void DebugPrint(const char* format, T payload){
 
 }
 
-inline void StringToWString(const std::string &string, std::wstring *pWstring){
+inline void StringToWString(const std::string &string, std::wstring &wString){
 	const int size = ::MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED,string.data(),string.size(), nullptr , 0);
-	pWstring->resize(size);
-	::MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED,string.data(),string.size(), pWstring->data(), size);
+	wString.resize(size);
+	::MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED,string.data(),string.size(), wString.data(), size);
 }
 
-inline void WStringToString(const std::wstring &wString, std::string *pString){
+inline void WStringToString(const std::wstring &wString, std::string &string){
 	const int size = ::WideCharToMultiByte(CP_UTF8, 0, wString.data(), wString.size(), nullptr, 0, NULL, NULL);
-	pString->resize(size);
-	::WideCharToMultiByte(CP_UTF8, 0, wString.data(), wString.size(), pString->data(), size, NULL, NULL);
+	string.resize(size);
+	::WideCharToMultiByte(CP_UTF8, 0, wString.data(), wString.size(), string.data(), size, NULL, NULL);
 }
 

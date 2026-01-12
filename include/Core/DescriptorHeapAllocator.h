@@ -8,7 +8,7 @@ class Application;
 class DescriptorHeapAllocator{
 public:
 	DescriptorHeapAllocator(UINT numDescriptorsPerHeap, D3D12_DESCRIPTOR_HEAP_TYPE heapType,D3D12_DESCRIPTOR_HEAP_FLAGS flags, Application* pApp);
-	void Alloc(D3D12_CPU_DESCRIPTOR_HANDLE* pCpuHandle, D3D12_GPU_DESCRIPTOR_HANDLE* pGpuHandle);
+	void Alloc(D3D12_CPU_DESCRIPTOR_HANDLE *pCpuHandle, D3D12_GPU_DESCRIPTOR_HANDLE* pGpuHandle);
 	void Free(D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle, D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle);
 	ID3D12DescriptorHeap *GetHeapPointer(uint32_t heap);
 	ID3D12DescriptorHeap* const *GetHeapPointerLocation(uint32_t heap);

@@ -186,11 +186,11 @@ void FileTools::Obj::ParseLines(size_t startOffset, size_t *pOutStartOffset, std
 	}
 }
 void FileTools::Obj::ParseObjFile(
-		std::vector<VertexPosTexNorm> *pIndexedVertexBuffer,
-		std::vector<uint32_t> *pIndexBuffer,
-		std::vector<SubMesh> *pMeshOffsetData,
-		std::vector<MaterialInfo> *pMatierialInfoData,
-		std::unordered_map<std::string, size_t> *pMaterialIdMap){
+		std::vector<VertexPosTexNorm> &indexedVertexBuffer,
+		std::vector<uint32_t> &indexBuffer,
+		std::vector<SubMesh> &meshOffsetData,
+		std::vector<MaterialInfo> &matierialInfoData,
+		std::unordered_map<std::string, size_t> &materialIdMap){
 
 	std::vector<DirectX::XMFLOAT3> vertPosBuffer;
 	std::vector<DirectX::XMFLOAT2> texCoordBuffer;
@@ -249,7 +249,7 @@ void FileTools::Obj::ParseObjFile(
 			{
 				std::string materialFile(tokenList.at(1));
 				Mtl mtlLoader(materialFile, directory_);
-				mtlLoader.ParseMtlFile(pMatierialInfoData, pMaterialIdMap);
+				mtlLoader.ParseMtlFile(matierialInfoData, materialIdMap);
 			}
 			break;
 			case ObjHeaderCode::face:
@@ -327,14 +327,14 @@ void FileTools::Obj::ParseObjFile(
 					meshName.append(objectName);
 					meshName.append(groupName);
 					meshName.append(mtlName);
-					bool alphaTested = pMatierialInfoData->at(pMaterialIdMap->at(mtlName)).alphaTested;
-					pMeshOffsetData->push_back({objectName,groupName, mtlName, pIndexBuffer->size(), interleavedBuffer.size(), pIndexedVertexBuffer->size(), 0, alphaTested});
-					Obj::GenerateIndexBuffer(interleavedBuffer, pIndexedVertexBuffer, pIndexBuffer);
-					pMeshOffsetData->back().numVertices = pIndexedVertexBuffer->size()-pMeshOffsetData->back().vertexOffset;
+					bool alphaTested = matierialInfoData.at(materialIdMap.at(mtlName)).alphaTested;
+					meshOffsetData.push_back({objectName,groupName, mtlName, indexBuffer.size(), interleavedBuffer.size(), indexedVertexBuffer.size(), 0, alphaTested});
+					Obj::GenerateIndexBuffer(interleavedBuffer, indexedVertexBuffer, indexBuffer);
+					meshOffsetData.back().numVertices = indexedVertexBuffer.size()-meshOffsetData.back().vertexOffset;
 					interleavedBuffer.clear();
 				}
 				if(!alphaTestedMeshData.empty()&&objectName==""){
-					Obj::PushBackData(alphaTestedMeshData, alphaTestedVertexData, alphaTestedIndexData, pIndexedVertexBuffer, pIndexBuffer, pMeshOffsetData);
+					Obj::PushBackData(alphaTestedMeshData, alphaTestedVertexData, alphaTestedIndexData, indexedVertexBuffer, indexBuffer, meshOffsetData);
 					alphaTestedMeshData.clear();
 					alphaTestedIndexData.clear();
 					alphaTestedVertexData.clear();
@@ -350,14 +350,14 @@ void FileTools::Obj::ParseObjFile(
 					meshName.append(objectName);
 					meshName.append(groupName);
 					meshName.append(mtlName);
-					bool alphaTested = pMatierialInfoData->at(pMaterialIdMap->at(mtlName)).alphaTested;
-					pMeshOffsetData->push_back({objectName,groupName, mtlName, pIndexBuffer->size(), interleavedBuffer.size(), pIndexedVertexBuffer->size(), 0, alphaTested});
-					Obj::GenerateIndexBuffer(interleavedBuffer, pIndexedVertexBuffer, pIndexBuffer);
-					pMeshOffsetData->back().numVertices = pIndexedVertexBuffer->size()-pMeshOffsetData->back().vertexOffset;
+					bool alphaTested = matierialInfoData.at(materialIdMap.at(mtlName)).alphaTested;
+					meshOffsetData.push_back({objectName,groupName, mtlName, indexBuffer.size(), interleavedBuffer.size(), indexedVertexBuffer.size(), 0, alphaTested});
+					Obj::GenerateIndexBuffer(interleavedBuffer, indexedVertexBuffer, indexBuffer);
+					meshOffsetData.back().numVertices = indexedVertexBuffer.size()-meshOffsetData.back().vertexOffset;
 					interleavedBuffer.clear();
 				}
 				if(!alphaTestedMeshData.empty()){
-					Obj::PushBackData(alphaTestedMeshData, alphaTestedVertexData, alphaTestedIndexData, pIndexedVertexBuffer, pIndexBuffer, pMeshOffsetData);
+					Obj::PushBackData(alphaTestedMeshData, alphaTestedVertexData, alphaTestedIndexData, indexedVertexBuffer, indexBuffer, meshOffsetData);
 					alphaTestedMeshData.clear();
 					alphaTestedIndexData.clear();
 					alphaTestedVertexData.clear();
@@ -372,17 +372,17 @@ void FileTools::Obj::ParseObjFile(
 					std::string meshName;
 					meshName.append(objectName);
 					meshName.append(groupName);
-					bool alphaTested = pMatierialInfoData->at(pMaterialIdMap->at(mtlName)).alphaTested;
+					bool alphaTested = matierialInfoData.at(materialIdMap.at(mtlName)).alphaTested;
 					if(alphaTested && meshName!=""){
 						alphaTestedMeshData.push_back({objectName, groupName, mtlName, alphaTestedIndexData.size(), interleavedBuffer.size(), alphaTestedVertexData.size(), 0, alphaTested});
-						Obj::GenerateIndexBuffer(interleavedBuffer, &alphaTestedVertexData, &alphaTestedIndexData);
+						Obj::GenerateIndexBuffer(interleavedBuffer, alphaTestedVertexData, alphaTestedIndexData);
 						alphaTestedMeshData.back().numVertices = alphaTestedIndexData.size()-alphaTestedMeshData.back().vertexOffset;
 						interleavedBuffer.clear();
 					}
 					else{
-						pMeshOffsetData->push_back(SubMesh{objectName,groupName, mtlName, pIndexBuffer->size(), interleavedBuffer.size(), pIndexedVertexBuffer->size(), 0, alphaTested});
-						Obj::GenerateIndexBuffer(interleavedBuffer, pIndexedVertexBuffer, pIndexBuffer);
-						pMeshOffsetData->back().numVertices = pIndexedVertexBuffer->size()-pMeshOffsetData->back().vertexOffset;
+						meshOffsetData.push_back(SubMesh{objectName,groupName, mtlName, indexBuffer.size(), interleavedBuffer.size(), indexedVertexBuffer.size(), 0, alphaTested});
+						Obj::GenerateIndexBuffer(interleavedBuffer, indexedVertexBuffer, indexBuffer);
+						meshOffsetData.back().numVertices = indexedVertexBuffer.size()-meshOffsetData.back().vertexOffset;
 						interleavedBuffer.clear();
 					}
 				}
@@ -398,24 +398,24 @@ void FileTools::Obj::ParseObjFile(
 
 		}
 	}
-	bool alphaTested = pMatierialInfoData->at(pMaterialIdMap->at(mtlName)).alphaTested;
-	pMeshOffsetData->push_back({objectName,groupName, mtlName, pIndexBuffer->size(), interleavedBuffer.size(), pIndexedVertexBuffer->size(), 0, alphaTested});
-	Obj::GenerateIndexBuffer(interleavedBuffer, pIndexedVertexBuffer, pIndexBuffer);
-	pMeshOffsetData->back().numVertices = pIndexedVertexBuffer->size()-pMeshOffsetData->back().vertexOffset;
+	bool alphaTested = matierialInfoData.at(materialIdMap.at(mtlName)).alphaTested;
+	meshOffsetData.push_back({objectName,groupName, mtlName, indexBuffer.size(), interleavedBuffer.size(), indexedVertexBuffer.size(), 0, alphaTested});
+	Obj::GenerateIndexBuffer(interleavedBuffer, indexedVertexBuffer, indexBuffer);
+	meshOffsetData.back().numVertices = indexedVertexBuffer.size()-meshOffsetData.back().vertexOffset;
 }
 
 
-void FileTools::Obj::GenerateIndexBuffer(const std::vector<VertexPosTexNorm> &interleavedBuffer, std::vector<VertexPosTexNorm> *pIndexedInterleavedBuffer, std::vector<uint32_t> *pIndexBuffer) const{
+void FileTools::Obj::GenerateIndexBuffer(const std::vector<VertexPosTexNorm> &interleavedBuffer, std::vector<VertexPosTexNorm> &indexedInterleavedBuffer, std::vector<uint32_t> &indexBuffer) const{
 	size_t numIndices = interleavedBuffer.size();
 	std::vector<uint32_t> remap(numIndices);
 	size_t numVertices = meshopt_generateVertexRemap(remap.data(), nullptr, numIndices, interleavedBuffer.data(), numIndices, sizeof(VertexPosTexNorm));
-	size_t vertexBufferOffset = pIndexedInterleavedBuffer->size();
-	size_t indexBufferOffset = pIndexBuffer->size();
-	pIndexedInterleavedBuffer->resize(vertexBufferOffset+ numVertices);
-	pIndexBuffer->resize(indexBufferOffset+ numIndices);
-	meshopt_remapVertexBuffer(pIndexedInterleavedBuffer->data() +vertexBufferOffset, interleavedBuffer.data(), numIndices, sizeof(VertexPosTexNorm), remap.data());
-	meshopt_remapIndexBuffer(pIndexBuffer->data()+indexBufferOffset, nullptr, numIndices, remap.data());
-	for(auto iter = pIndexBuffer->begin()+indexBufferOffset; iter!=pIndexBuffer->end(); ++iter){
+	size_t vertexBufferOffset = indexedInterleavedBuffer.size();
+	size_t indexBufferOffset = indexBuffer.size();
+	indexedInterleavedBuffer.resize(vertexBufferOffset+ numVertices);
+	indexBuffer.resize(indexBufferOffset+ numIndices);
+	meshopt_remapVertexBuffer(indexedInterleavedBuffer.data() +vertexBufferOffset, interleavedBuffer.data(), numIndices, sizeof(VertexPosTexNorm), remap.data());
+	meshopt_remapIndexBuffer(indexBuffer.data()+indexBufferOffset, nullptr, numIndices, remap.data());
+	for(auto iter = indexBuffer.begin()+indexBufferOffset; iter!=indexBuffer.end(); ++iter){
 		*iter += (uint32_t)vertexBufferOffset;
 	}
 }
@@ -480,22 +480,22 @@ void FileTools::Obj::PushBackData(
 	const std::vector<SubMesh> &alphaTestedMeshData,
 	const std::vector<VertexPosTexNorm> &alphaTestedVertexData,
 	const std::vector<uint32_t> &alphaTestedIndexData,
-	std::vector<VertexPosTexNorm> *pIndexedVertexData,
-	std::vector<uint32_t> *pIndexData,
-	std::vector<SubMesh> *pMeshOffsetData) const{
-	const uint32_t vertexOffset = pIndexedVertexData->size();
-	const uint32_t indexOffset = pIndexData->size();
-	pIndexedVertexData->resize(vertexOffset+alphaTestedVertexData.size());
-	pIndexData->resize(indexOffset+alphaTestedIndexData.size());
+	std::vector<VertexPosTexNorm> &indexedVertexData,
+	std::vector<uint32_t> &indexData,
+	std::vector<SubMesh> &meshOffsetData) const{
+	const uint32_t vertexOffset = indexedVertexData.size();
+	const uint32_t indexOffset = indexData.size();
+	indexedVertexData.resize(vertexOffset+alphaTestedVertexData.size());
+	indexData.resize(indexOffset+alphaTestedIndexData.size());
 	for(uint32_t i = 0; i<alphaTestedVertexData.size(); ++i){
-		(*pIndexedVertexData)[vertexOffset+i] = alphaTestedVertexData[i];
+		indexedVertexData[vertexOffset+i] = alphaTestedVertexData[i];
 	}
 	for(uint32_t i = 0; i<alphaTestedIndexData.size(); ++i){
-		(*pIndexData)[indexOffset+i] = alphaTestedIndexData[i] + vertexOffset;
+		indexData[indexOffset+i] = alphaTestedIndexData[i] + vertexOffset;
 	}
 	for(uint32_t i = 0; i<alphaTestedMeshData.size(); ++i){
 		SubMesh temp = alphaTestedMeshData[i];
-		pMeshOffsetData->push_back({temp.objName, temp.groupName, temp.material, temp.indexOffset+indexOffset, temp.numIndices, temp.vertexOffset+ vertexOffset, temp.numVertices, true});
+		meshOffsetData.push_back({temp.objName, temp.groupName, temp.material, temp.indexOffset+indexOffset, temp.numIndices, temp.vertexOffset+ vertexOffset, temp.numVertices, true});
 	}
 
 }
@@ -505,10 +505,10 @@ FileTools::Mtl::Mtl(const std::string mtlFile, const std::string directory):
 fileName_(mtlFile),
 currentDir_(directory){
 }
-void FileTools::Mtl::ParseMtlFile(std::vector<MaterialInfo> *pMatierialInfoData, std::unordered_map<std::string, size_t> *pMaterialIdMap){
-	pMatierialInfoData->reserve(50);
-	pMatierialInfoData->clear();
-	pMaterialIdMap->clear();
+void FileTools::Mtl::ParseMtlFile(std::vector<MaterialInfo> &matierialInfoData, std::unordered_map<std::string, size_t> &materialIdMap){
+	matierialInfoData.reserve(50);
+	matierialInfoData.clear();
+	materialIdMap.clear();
 
 	ThrowIfFailed(::CoInitializeEx(nullptr, COINIT_MULTITHREADED));
 	std::vector<char> fileBuffer;
@@ -545,8 +545,8 @@ void FileTools::Mtl::ParseMtlFile(std::vector<MaterialInfo> *pMatierialInfoData,
 			MaterialInfo materialInfo = {};
 			if(materialId!=tokenList.at(1)){
 				Mtl::GenerateMaterialData(texturePaths, &materialInfo);
-				pMatierialInfoData->push_back(materialInfo);
-				pMaterialIdMap->insert({materialId,pMatierialInfoData->size()-1}) ;
+				matierialInfoData.push_back(materialInfo);
+				materialIdMap.insert({materialId,matierialInfoData.size()-1}) ;
 				materialId = tokenList.at(1);
 				texturePaths = {};
 			}
@@ -581,8 +581,8 @@ void FileTools::Mtl::ParseMtlFile(std::vector<MaterialInfo> *pMatierialInfoData,
 	}
 	MaterialInfo materialInfo = {};
 	Mtl::GenerateMaterialData(texturePaths, &materialInfo);
-	pMatierialInfoData->push_back(materialInfo);
-	pMaterialIdMap->insert({materialId,pMatierialInfoData->size()-1}) ;
+	matierialInfoData.push_back(materialInfo);
+	materialIdMap.insert({materialId,matierialInfoData.size()-1}) ;
 	texturePaths = {};
 
 	::CoUninitialize();
@@ -602,7 +602,7 @@ void FileTools::Mtl::GenerateMaterialData(const MaterialTextures &texturePaths, 
 		filePath.append(currentDir_);
 		filePath.append(texturePaths.dissolve);
 		std::wstring filePathW;
-		StringToWString(filePath, &filePathW);
+		StringToWString(filePath, filePathW);
 		ThrowIfFailed(DirectX::GetMetadataFromDDSFileEx(filePathW.c_str(), DirectX::DDS_FLAGS_NONE, metaData, nullptr));
 		pMaterialInfo->alphaTested = (DirectX::HasAlpha(metaData.format)&& (metaData.format!=(DXGI_FORMAT_BC1_UNORM|DXGI_FORMAT_BC1_TYPELESS)));
 	}

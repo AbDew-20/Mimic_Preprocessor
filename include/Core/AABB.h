@@ -29,12 +29,13 @@ struct AABB{
 		return vol;
 	}
 
-	void Center(DirectX::XMFLOAT3 *pCenter) const{
+	void GetCenter(DirectX::XMFLOAT3 &center) const{
 		using namespace DirectX;
-		DirectX::XMStoreFloat3(pCenter, DirectX::XMVectorLerp(XMLoadFloat3(&min),XMLoadFloat3(&max), 0.5f));
+		DirectX::XMStoreFloat3(&center, DirectX::XMVectorLerp(XMLoadFloat3(&min),XMLoadFloat3(&max), 0.5f));
 	}
 
-	void Vertices(std::vector<VertexPos> *pVerts) const{
+	void GetVertices(std::vector<VertexPos> &verts) const{
+		verts.resize(8);
 		const uint8_t xMask = 0b00000001;
 		const uint8_t yMask = 0b00000010;
 		const uint8_t zMask = 0b00000100;
@@ -43,11 +44,11 @@ struct AABB{
 			vert.vert.x = (j&xMask) ? max.x : min.x;
 			vert.vert.y = (j&yMask) ? max.y : min.y;
 			vert.vert.z = (j&zMask) ? max.z : min.z;
-			pVerts->push_back(vert);
+			verts[j]=vert;
 		}
 	}
 
-	float GetDiagonal()const{
+	float GetDiagonalLength()const{
 		using namespace DirectX;
 		XMFLOAT3 len;
 		XMStoreFloat3(&len, XMVector3Length(XMVectorSubtract(XMLoadFloat3(&max), XMLoadFloat3(&min))));
