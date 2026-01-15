@@ -55,7 +55,7 @@ void MeshViewer::UnloadContent(){
 
 void MeshViewer::TransitionState(){
 	std::visit(
-		[this](auto &&args)->void{
+		[this](auto &args)->void{
 			using T = std::decay_t<decltype(args)>;
 
 			if constexpr(std::is_same_v<T, SplashState>){
@@ -87,6 +87,9 @@ void MeshViewer::TransitionState(){
 					contextStack_.pop_back();
 					pInputmanager->PopContext();
 				}
+			}
+			else{
+				static_assert(false, "Variant not handled in visitor");
 			}
 		
 		},
@@ -123,7 +126,7 @@ void MeshViewer::HandleInput(MappedInput &input){
 			break;
 		}
 
-		if(auto iterator = input.Actions.begin()==input.Actions.end()){
+		if(input.Actions.begin()==input.Actions.end()){
 			break;
 		}
 	
@@ -137,7 +140,7 @@ void MeshViewer::OnUpdate(double deltaTime, double totalTime){
 	ImGui::NewFrame();
 
 	std::visit(
-		[this, deltaTime, totalTime](auto &&args){
+		[this, deltaTime, totalTime](auto &args){
 			using T = std::decay_t<decltype(args)>;
 			if constexpr(std::is_same_v<T, SplashState>){
 				SplashContext *pSplashContext = GetContext<SplashContext>();
@@ -162,6 +165,9 @@ void MeshViewer::OnUpdate(double deltaTime, double totalTime){
 				}
 			
 			}
+			else{
+				static_assert(false, "Variant not handled in visitor");
+			}
 		}
 		,currentState_);
 }
@@ -183,29 +189,12 @@ void MeshViewer::OnRender(double deltaTime, double totalTime){
 	D3D12_RECT scissorRect = CD3DX12_RECT(0,0, LONG_MAX, LONG_MAX);
 	pCommandList->RSSetScissorRects(1, &scissorRect);
 
-	std::visit(
-		[this, rtv, dsv, pCommandList, deltaTime](auto &&args){
-			using T = std::decay_t<decltype(args)>;
-			if constexpr(std::is_same_v<T, SplashState>){
-				SplashContext *pSplashContext = GetContext<SplashContext>();
-				assert(pSplashContext !=nullptr&&"Context Missing");
-
-				pSplashContext->Render(rtv, dsv, pCommandList, deltaTime);
-			}
-			else if constexpr(std::is_same_v<T, ViewerState>){
-				ViewerContext *pViewerContext = GetContext<ViewerContext>();
-				assert(pViewerContext!=nullptr && "Context Missing");
-
-				pViewerContext->Render(rtv, dsv, pCommandList, deltaTime);
-				if(args.mode==ViewerState::Mode::LOADING){
-					LoadingContext *pLoadingContext = GetContext<LoadingContext>();
-					assert(pLoadingContext!=nullptr&&"Context Missing");
-
-					pLoadingContext->Render(rtv, dsv, pCommandList, deltaTime);
-				}
-			}
-		}
-		,currentState_);
+	for(Context &context:contextStack_){
+		std::visit(
+			[rtv, dsv, pCommandList, deltaTime](auto &args){
+				args.Render(rtv, dsv, pCommandList, deltaTime);
+			}, context);
+	}
 
 	pCommandList->OMSetRenderTargets(1, &rtv, FALSE, &dsv);
 	pCommandList->SetDescriptorHeaps(1, imguiSRVAlloc_.GetHeapPointerLocation(0));

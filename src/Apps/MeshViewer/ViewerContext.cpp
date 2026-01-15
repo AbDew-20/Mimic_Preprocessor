@@ -81,7 +81,7 @@ void ViewerContext::HandleInput(MappedInput &mappedInput){
 		break;
 
 		}
-		if(auto iterator = mappedInput.Actions.begin()==mappedInput.Actions.end()){
+		if(mappedInput.Actions.begin()==mappedInput.Actions.end()){
 			break;
 		}
 	
@@ -100,9 +100,10 @@ void ViewerContext::Update(ViewerStateParams &stateParams,double deltaTime, doub
 		if(!stateParams.loading){
 			stateParams.asyncStarted = true;
 			stateParams.workType = "Loading File";
-			asyncThread_.Start(&ViewerContext::ProcessObjFile,std::ref(fileLoaded_), this, std::cref(filePath_), std::ref(indexedVertexData_), std::ref(indexData_), std::ref(bbVertexData_), std::ref(bbIndexData_));
+			asyncThread_.Start(&ViewerContext::ProcessObjFile, this, std::cref(filePath_), std::ref(indexedVertexData_), std::ref(indexData_), std::ref(bbVertexData_), std::ref(bbIndexData_));
 		}
 		else{
+			fileLoaded_ = asyncThread_.GetCompleted();
 			uint32_t stage =asyncThread_.GetStage();
 			switch(stage){
 			case 0:
@@ -342,7 +343,7 @@ void ViewerContext::ProcessObjFile(
 		itemList[idx] = pMeshInfo->meshId;
 		lengthScaleData[idx] = boundingBox.GetDiagonalLength();
 		occluderScoreData[idx] = (occluderScore)? occluderScore*boundingBox.GetAABBSurfaceArea() : 0.0f;
-		triangleNumData[idx] = pMeshInfo->numIndicesTotal/3;
+		triangleNumData[idx] = pMeshInfo->numIndicesTotal/3.0f;
 	}
 
 	analyzer.SetItemList(std::move(itemList));

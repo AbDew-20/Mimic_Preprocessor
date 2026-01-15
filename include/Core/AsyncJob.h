@@ -1,7 +1,6 @@
 #pragma once
 #include <thread>
 #include <atomic>
-#include <utility>
 
 struct JobState{
 	std::atomic<float_t> percent{0.0f};
@@ -16,14 +15,12 @@ public:
 	}
 
 	template<typename Func, typename... Args>
-	void Start(Func &&fn,bool &onComplete, Args&&... args){
+	void Start(Func &&fn, Args&&... args){
 		assert(!worker_.joinable()&&"Thread in use");
-		worker_ = std::thread([this, fn = std::forward<Func>(fn)](bool &onComplete, auto&&... args){ 
+		worker_ = std::thread([this, fn = std::forward<Func>(fn)](auto&&... args){ 
 			std::invoke(fn,std::forward<decltype(args)>(args)...,state_);
 			state_.completed = true;
-			onComplete = true;
 		},
-			std::ref(onComplete),
 		std::forward<Args>(args)...
 		);
 	}
