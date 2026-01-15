@@ -11,7 +11,7 @@ DataAnalysis::DataAnalyzer::DataAnalyzer(size_t numItems):
 }
 
 
-void DataAnalysis::DataAnalyzer::AddDataSeries(std::string &seriesName, std::vector<float> &&dataSeries){
+void DataAnalysis::DataAnalyzer::AddDataSeries(const std::string &seriesName, std::vector<float> &&dataSeries){
 	dataList_[seriesName] = std::move(dataSeries);
 }
 
@@ -21,7 +21,7 @@ void DataAnalysis::DataAnalyzer::SetItemList(std::vector<std::string_view> &&ite
 }
 
 
-void DataAnalysis::DataAnalyzer::SortBySeries(std::string &seriesName){
+void DataAnalysis::DataAnalyzer::SortBySeries(const std::string &seriesName){
 	std::vector<float> &dataSeries = dataList_[seriesName];
 	currentSeries_.seriesName = seriesName;
 	currentSeries_.seriesData.resize(frame_.size());

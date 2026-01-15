@@ -12,8 +12,8 @@ namespace DataAnalysis{
 		DataAnalyzer(size_t numItems);
 
 
-		void AddDataSeries(std::string &seriesName, std::vector<float> &&dataSeries);
-		void SortBySeries(std::string &seriesName);
+		void AddDataSeries(const std::string &seriesName, std::vector<float> &&dataSeries);
+		void SortBySeries(const std::string &seriesName);
 		void SetItemList(std::vector<std::string_view> &&itemList);
 		void GenerateCumalativeHistogram(std::string &seriesName, size_t numBins, float min, float max, std::vector<std::pair<float, float>> *pCumalativeHistogram, std::vector<std::pair<float, float>> *pBinData);
 		void GenerateHistogram(std::string &seriesName, size_t numBins, float min, float max, std::vector<std::pair<float, float>> *pHistogram, std::vector<std::pair<float, float>> *pBinData);

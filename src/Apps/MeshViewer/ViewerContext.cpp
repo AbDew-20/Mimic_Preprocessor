@@ -116,39 +116,40 @@ void ViewerContext::Update(ViewerStateParams &stateParams,double deltaTime, doub
 			break;
 			}
 		}
-	
-	}else{
-		if(!buffersUploaded_){
-			ResourceManager *pResourceManager = pApp_->GetResourceManager();
-			pResourceManager->UploadVertexBuffer(indexedVertexData_.data(), indexedVertexData_.size(), sizeof(indexedVertexData_[0]), &vertexBuffers_[0]);
-			pResourceManager->UploadIndexBuffer(indexData_.data(), indexData_.size(), &indexBuffers_[0]);
-			pResourceManager->UploadVertexBuffer(bbVertexData_.data(), bbVertexData_.size(), sizeof(bbVertexData_[0]), &vertexBuffers_[1]);
-			pResourceManager->UploadIndexBuffer(bbIndexData_.data(), bbIndexData_.size(), &indexBuffers_[1]);
-			buffersUploaded_ = true;
-			indexedVertexData_.resize(0);
-			indexData_.resize(0);
-			bbVertexData_.resize(0);
-			bbIndexData_.resize(0);
-		}
-		CenterMesh();
-		ScaleMesh();
-
-		DirectX::XMStoreFloat4(&cameraPos_, DirectX::XMVectorAdd(DirectX::XMVectorScale(DirectX::XMLoadFloat4(&cameraVelocity_), deltaTime), DirectX::XMLoadFloat4(&cameraPos_)));
-		const DirectX::XMVECTOR eyePostition = DirectX::XMLoadFloat4(&cameraPos_);
-		const DirectX::XMVECTOR focusPoint = DirectX::XMVectorSet(0, 0, 0, 1);
-		const DirectX::XMVECTOR upDirection = DirectX::XMVectorSet(0, 1, 0, 0);
-		viewMatrix_ = DirectX::XMMatrixLookToLH(eyePostition, DirectX::XMVectorSet(0, 0, 1, 0), upDirection);
-
-		float aspectRatio = stateParams.clientWidth/static_cast<float>(stateParams.clientHeight);
-		projectionMatrix_ = DirectX::XMMatrixPerspectiveFovLH(DirectX::XMConvertToRadians(45.0f), aspectRatio, 0.1f, 100.0f);
-
-
-		float angle = static_cast<float>(totalTime*0.0/200.0);
-		const DirectX::XMVECTOR rotationAxis = DirectX::XMVectorSet(0, 1, 0, 0);
-		DirectX::XMMATRIX rotationMatrix = DirectX::XMMatrixRotationAxis(rotationAxis, angle);
-		modelMatrix_ = DirectX::XMMatrixMultiply(modelMatrix_, rotationMatrix);
-		
+		return;
 	}
+
+	if(!buffersUploaded_){
+		ResourceManager *pResourceManager = pApp_->GetResourceManager();
+		pResourceManager->UploadVertexBuffer(indexedVertexData_.data(), indexedVertexData_.size(), sizeof(indexedVertexData_[0]), &vertexBuffers_[0]);
+		pResourceManager->UploadIndexBuffer(indexData_.data(), indexData_.size(), &indexBuffers_[0]);
+		pResourceManager->UploadVertexBuffer(bbVertexData_.data(), bbVertexData_.size(), sizeof(bbVertexData_[0]), &vertexBuffers_[1]);
+		pResourceManager->UploadIndexBuffer(bbIndexData_.data(), bbIndexData_.size(), &indexBuffers_[1]);
+		buffersUploaded_ = true;
+		indexedVertexData_.resize(0);
+		indexData_.resize(0);
+		bbVertexData_.resize(0);
+		bbIndexData_.resize(0);
+	}
+	CenterMesh();
+	ScaleMesh();
+
+	DirectX::XMStoreFloat4(&cameraPos_, DirectX::XMVectorAdd(DirectX::XMVectorScale(DirectX::XMLoadFloat4(&cameraVelocity_), deltaTime), DirectX::XMLoadFloat4(&cameraPos_)));
+	const DirectX::XMVECTOR eyePostition = DirectX::XMLoadFloat4(&cameraPos_);
+	const DirectX::XMVECTOR focusPoint = DirectX::XMVectorSet(0, 0, 0, 1);
+	const DirectX::XMVECTOR upDirection = DirectX::XMVectorSet(0, 1, 0, 0);
+	viewMatrix_ = DirectX::XMMatrixLookToLH(eyePostition, DirectX::XMVectorSet(0, 0, 1, 0), upDirection);
+
+	float aspectRatio = stateParams.clientWidth/static_cast<float>(stateParams.clientHeight);
+	projectionMatrix_ = DirectX::XMMatrixPerspectiveFovLH(DirectX::XMConvertToRadians(45.0f), aspectRatio, 0.1f, 100.0f);
+
+
+	float angle = static_cast<float>(totalTime*0.0/200.0);
+	const DirectX::XMVECTOR rotationAxis = DirectX::XMVectorSet(0, 1, 0, 0);
+	DirectX::XMMATRIX rotationMatrix = DirectX::XMMatrixRotationAxis(rotationAxis, angle);
+	modelMatrix_ = DirectX::XMMatrixMultiply(modelMatrix_, rotationMatrix);
+		
+	
 }
 
 
@@ -178,22 +179,24 @@ void ViewerContext::Render(D3D12_CPU_DESCRIPTOR_HANDLE rtv,
 			DirectX::XMMATRIX mvpMatrix = DirectX::XMMatrixMultiply(modelMatrix_, DirectX::XMMatrixScaling(zoom_, zoom_, zoom_));
 			mvpMatrix = DirectX::XMMatrixMultiply(mvpMatrix, viewMatrix_);
 			mvpMatrix = DirectX::XMMatrixMultiply(mvpMatrix, projectionMatrix_);
-			pCommandList->SetGraphicsRootSignature(pipelines_[0].pRootSignature);
-			pCommandList->SetPipelineState(pipelines_[0].pPipelineState);
-			pCommandList->IASetPrimitiveTopology(pipelines_[0].primitiveTopology);
+			size_t passIndex = static_cast<size_t>(RenderPass::MAIN);
+			pCommandList->SetGraphicsRootSignature(pipelines_[passIndex].pRootSignature);
+			pCommandList->SetPipelineState(pipelines_[passIndex].pPipelineState);
+			pCommandList->IASetPrimitiveTopology(pipelines_[passIndex].primitiveTopology);
 			pCommandList->SetGraphicsRoot32BitConstants(0, sizeof(DirectX::XMMATRIX)/4, &mvpMatrix, 0);
 			pCommandList->SetGraphicsRoot32BitConstants(0, sizeof(DirectX::XMMATRIX)/4, &modelMatrix_, 16);
-			pCommandList->IASetVertexBuffers(0, 1, &vertexBuffers_[0].vertexView);
-			pCommandList->IASetIndexBuffer(&indexBuffers_[0].indexView);
+			pCommandList->IASetVertexBuffers(0, 1, &vertexBuffers_[passIndex].vertexView);
+			pCommandList->IASetIndexBuffer(&indexBuffers_[passIndex].indexView);
 			pCommandList->DrawIndexedInstanced((UINT)meshInfo.numIndicesTotal, 1, meshInfo.indexOffset, 0, 0);
 
 
 			if(boundingBoxVisible_){
-				pCommandList->SetGraphicsRootSignature(pipelines_[1].pRootSignature);
-				pCommandList->SetPipelineState(pipelines_[1].pPipelineState);
-				pCommandList->IASetPrimitiveTopology(pipelines_[1].primitiveTopology);
-				pCommandList->IASetVertexBuffers(0, 1, &vertexBuffers_[1].vertexView);
-				pCommandList->IASetIndexBuffer(&indexBuffers_[1].indexView);
+				passIndex = static_cast<size_t>(RenderPass::DEBUG);
+				pCommandList->SetGraphicsRootSignature(pipelines_[passIndex].pRootSignature);
+				pCommandList->SetPipelineState(pipelines_[passIndex].pPipelineState);
+				pCommandList->IASetPrimitiveTopology(pipelines_[passIndex].primitiveTopology);
+				pCommandList->IASetVertexBuffers(0, 1, &vertexBuffers_[passIndex].vertexView);
+				pCommandList->IASetIndexBuffer(&indexBuffers_[passIndex].indexView);
 				pCommandList->DrawIndexedInstanced(24, 1, meshIndex*24, 0, 0);
 			}
 		}
