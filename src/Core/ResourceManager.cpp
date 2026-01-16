@@ -1,4 +1,4 @@
-#include <Core/Helper.h>
+#include <Core/PCH.h>
 #include <Core/ResourceManager.h>
 #include <Core/Application.h>
 
@@ -18,21 +18,24 @@ void ResourceManager::UpdateBufferResource(ID3D12GraphicsCommandList4 *pCommandL
 	ID3D12Device2 *pDevice = pApp_->GetDevice();
 	size_t bufferSize = elementSize*numElements;
 
+	D3D12_HEAP_PROPERTIES heapProp=::CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+	D3D12_RESOURCE_DESC resourceDesc=::CD3DX12_RESOURCE_DESC::Buffer(bufferSize, flags);
 	ThrowIfFailed(pDevice->CreateCommittedResource(
-		&::CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+		&heapProp,
 		D3D12_HEAP_FLAG_NONE,
-		&::CD3DX12_RESOURCE_DESC::Buffer(bufferSize, flags),
+		&resourceDesc,
 		D3D12_RESOURCE_STATE_COMMON,
 		nullptr,
 		IID_ID3D12Resource,
 		reinterpret_cast<void **>(ppDestinationResource)));
 
-
 	if(buffer){
+		D3D12_HEAP_PROPERTIES heapProp=::CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+		D3D12_RESOURCE_DESC resourceDesc=::CD3DX12_RESOURCE_DESC::Buffer(bufferSize);
 		ThrowIfFailed(pDevice->CreateCommittedResource(
-			&::CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+			&heapProp,
 			D3D12_HEAP_FLAG_NONE,
-			&::CD3DX12_RESOURCE_DESC::Buffer(bufferSize),
+			&resourceDesc,
 			D3D12_RESOURCE_STATE_GENERIC_READ,
 			nullptr,
 			IID_ID3D12Resource,

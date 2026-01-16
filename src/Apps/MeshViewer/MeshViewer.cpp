@@ -238,10 +238,12 @@ void MeshViewer::CreateDepthBuffer(int width, int height){
 	clearValue.DepthStencil = {1.0f, 0};
 	SafeRelease(pDepthBuffer_);
 
+	D3D12_HEAP_PROPERTIES heapProp =::CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+	D3D12_RESOURCE_DESC resourceDesc = ::CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_D32_FLOAT, width, height, 1, 0, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
 	ThrowIfFailed(pDevice->CreateCommittedResource(
-		&::CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+		&heapProp,
 		D3D12_HEAP_FLAG_NONE,
-		&::CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_D32_FLOAT, width, height, 1, 0, 1,0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL),
+		&resourceDesc,
 		D3D12_RESOURCE_STATE_DEPTH_WRITE,
 		&clearValue,
 		IID_ID3D12Resource,
