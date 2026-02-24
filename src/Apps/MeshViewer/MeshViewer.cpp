@@ -2,12 +2,14 @@
 #include <Apps/MeshViewer/InputContext.h>
 #include <Apps/MeshViewer/MeshViewer.h>
 #include <Apps/MeshViewer/SplashContext.h>
+#include <Apps/MeshViewer/GraphContext.h>
 #include <backends/imgui_impl_dx12.h>
 #include <backends/imgui_impl_win32.h>
 #include <Core/Application.h>
 #include <Core/CommandQueue.h>
 #include <Core/PCH.h>
 #include <imgui.h>
+#include <implot.h>
 
 
 
@@ -62,7 +64,7 @@ void MeshViewer::TransitionState(){
 				if(args.fileSelected){
 					contextStack_.pop_back();
 					contextStack_.push_back(ViewerContext(this->pApp_, args.filePath, this->asyncThread_));
-					currentState_ = ViewerState{ViewerState::Mode::NORMAL,false, false, args.filePath};
+					currentState_ = ViewerState{ViewerState::Mode::NORMAL,false, false, ""};
 					this->GetContext<ViewerContext>()->Load();
 					InputManager *pInputmanager = pApp_->GetInputManager();
 					std::string contextName = "ViewerContext";
@@ -87,6 +89,37 @@ void MeshViewer::TransitionState(){
 					contextStack_.pop_back();
 					pInputmanager->PopContext();
 				}
+				if(args.loadGraph){
+					args.loadGraph = false;
+					DataAnalysis::DataAnalyzer &analyzer =this->GetContext<ViewerContext>()->GetAnalyzer();
+					contextStack_.push_back(GraphContext(analyzer));
+					previousState_ = currentState_;
+					currentState_ = GraphState{GraphState::Mode::NORMAL, false, false,""};
+				}
+			}
+			else if constexpr(std::is_same_v<T, GraphState>){
+				if(args.focusViewer){
+					args.focusViewer = false;
+					contextStack_.pop_back();
+					currentState_ = previousState_;
+				}
+				InputManager *pInputmanager = pApp_->GetInputManager();
+				if(args.asyncStarted){
+					args.asyncStarted = false;
+					args.mode = GraphState::Mode::LOADING;
+					contextStack_.push_back(LoadingContext(args.workType));
+					std::string contextName = "LoadingContext";
+					pInputmanager->PushContext(contextName);
+				}
+				if(args.asyncFinished){
+					asyncThread_.Join();
+					asyncThread_.Reset();
+					args.asyncFinished = false;
+					args.mode = GraphState::Mode::NORMAL;
+					contextStack_.pop_back();
+					pInputmanager->PopContext();
+				}
+			
 			}
 			else{
 				static_assert(false, "Variant not handled in visitor");
@@ -138,7 +171,6 @@ void MeshViewer::OnUpdate(double deltaTime, double totalTime){
 	ImGui_ImplDX12_NewFrame();
 	ImGui_ImplWin32_NewFrame();
 	ImGui::NewFrame();
-
 	std::visit(
 		[this, deltaTime, totalTime](auto &args){
 			using T = std::decay_t<decltype(args)>;
@@ -153,9 +185,25 @@ void MeshViewer::OnUpdate(double deltaTime, double totalTime){
 				ViewerContext *pViewerContext = GetContext<ViewerContext>();
 				assert(pViewerContext!=nullptr && "Context Missing");
 
-				ViewerStateParams viewerParams = {this->GetClientWidth(), this->GetClientHeight(), (args.mode==ViewerState::Mode::LOADING), args.asyncStarted, args.workType};
+				ViewerStateParams viewerParams = {this->GetClientWidth(), this->GetClientHeight(), (args.mode==ViewerState::Mode::LOADING), args.asyncStarted, args.workType, args.loadGraph};
 				pViewerContext->Update(viewerParams, deltaTime, totalTime);
 				if(args.mode==ViewerState::Mode::LOADING){
+					LoadingContext *pLoadingContext = GetContext<LoadingContext>();
+					assert(pLoadingContext!=nullptr&&"Context Missing");
+
+					LoadingStateParams loadingParams = {this->GetClientWidth(), this->GetClientHeight(), this->asyncThread_.GetPercent(), args.workType};
+					pLoadingContext->Update(loadingParams, deltaTime);
+					args.asyncFinished = this->asyncThread_.GetCompleted();
+				}
+			
+			}
+			else if constexpr(std::is_same_v<T, GraphState>){
+				GraphContext *pGraphContext = GetContext<GraphContext>();
+				assert(pGraphContext!=nullptr&&"ContextMissing");
+
+				GraphStateParams graphParams = {this->GetClientWidth(), this->GetClientHeight(), args.focusViewer};
+				pGraphContext->Update(graphParams, deltaTime);
+				if(args.mode==GraphState::Mode::LOADING){
 					LoadingContext *pLoadingContext = GetContext<LoadingContext>();
 					assert(pLoadingContext!=nullptr&&"Context Missing");
 
@@ -268,6 +316,7 @@ void MeshViewer::InitImgui(){
 	float main_scale = ImGui_ImplWin32_GetDpiScaleForMonitor(::MonitorFromPoint(POINT{0, 0}, MONITOR_DEFAULTTOPRIMARY));
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
+	ImPlot::CreateContext();
 
 	ImGuiIO &io = ImGui::GetIO(); 
 	(void)io;
@@ -306,6 +355,7 @@ void MeshViewer::InitImgui(){
 void MeshViewer::DestroyImgui(){
 	ImGui_ImplDX12_Shutdown();
 	ImGui_ImplWin32_Shutdown();
+	ImPlot::DestroyContext();
 	ImGui::DestroyContext();
 }
 

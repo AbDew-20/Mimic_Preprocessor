@@ -2,6 +2,7 @@
 #include <Apps/MeshViewer/LoadingContext.h>
 #include <Apps/MeshViewer/SplashContext.h>
 #include <Apps/MeshViewer/ViewerContext.h>
+#include <Apps/MeshViewer/GraphContext.h>
 #include <Core/AsyncJob.h>
 #include <Core/DescriptorHeapAllocator.h>
 #include <Core/Game.h>
@@ -14,7 +15,7 @@ class Application;
 class CommandQueue;
 struct SubMesh;
 
-using Context = std::variant<SplashContext, ViewerContext, LoadingContext>;
+using Context = std::variant<SplashContext, ViewerContext, LoadingContext, GraphContext>;
 
 struct SplashState{
 	bool fileSelected = false;
@@ -25,9 +26,17 @@ struct ViewerState{
 	bool asyncStarted = false;
 	bool asyncFinished = false;
 	std::string workType;
+	bool loadGraph = false;
+};
+struct GraphState{
+	enum class Mode {NORMAL, LOADING} mode;
+	bool asyncStarted = false;
+	bool asyncFinished = false;
+	std::string workType;
+	bool focusViewer = false;
 };
 
-using State = std::variant<SplashState, ViewerState>;
+using State = std::variant<SplashState, ViewerState, GraphState>;
 class MeshViewer : public Game{
 	
 public:
@@ -72,6 +81,7 @@ private:
 	}
 
 	State currentState_;
+	State previousState_;
 	std::vector<Context> contextStack_;
 
 	Application *pApp_;

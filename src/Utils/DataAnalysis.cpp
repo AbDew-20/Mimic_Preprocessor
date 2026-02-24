@@ -3,8 +3,9 @@
 #include <numeric>
 
 
-DataAnalysis::DataAnalyzer::DataAnalyzer(size_t numItems):
-	numItems_(numItems){
+
+void DataAnalysis::DataAnalyzer::Init(size_t numItems){
+	numItems_ = numItems;
 	currentSeries_.seriesData.resize(numItems);
 	frame_.resize(numItems);
 	std::iota(frame_.begin(), frame_.end(), 0);
@@ -31,60 +32,70 @@ void DataAnalysis::DataAnalyzer::SortBySeries(const std::string &seriesName){
 
 	std::sort(currentSeries_.seriesData.begin(), currentSeries_.seriesData.end());
 }
-void DataAnalysis::DataAnalyzer::GenerateCumalativeHistogram(std::string &seriesName, size_t numBins, float min, float max, std::vector<std::pair<float, float>> *pCumalativeHistogram, std::vector<std::pair<float, float>> *pBinData){
+void DataAnalysis::DataAnalyzer::GenerateCumalativeHistogram(const std::string &seriesName, size_t numBins, float min, float max,
+	std::vector<float> &cumalativeHistogramx,
+	std::vector<float> &cumalativeHistogramy,
+	std::vector<std::pair<float, float>> &binData)
+{
 	if(currentSeries_.seriesName==""){
 		return;
 	}
 	if(numBins!=0){
-		GenerateHistogram(seriesName, numBins, min, max, pCumalativeHistogram, pBinData);
+		GenerateHistogram(seriesName, numBins, min, max, cumalativeHistogramx, cumalativeHistogramy, binData);
 	}
 	float sum = 0.0f;
 	for(int i = 0; i<numBins; ++i){
-		float temp = (*pCumalativeHistogram)[i].second;
-		(*pCumalativeHistogram)[i].second += sum;
+		float temp = cumalativeHistogramy[i];
+		cumalativeHistogramy[i]+= sum;
 		sum += temp;
 	}
 }
-void DataAnalysis::DataAnalyzer::GenerateHistogram(std::string &seriesName, size_t numBins, float min, float max, std::vector<std::pair<float, float>> *pHistogram, std::vector<std::pair<float, float>> *pBinData){
+void DataAnalysis::DataAnalyzer::GenerateHistogram(const std::string &seriesName, size_t numBins, float min, float max,
+	std::vector<float> &histogramx,
+	std::vector<float> &histogramy,
+	std::vector<std::pair<float, float>> &binData)
+{
 	if(currentSeries_.seriesName==""){
 		return;
 	}
-	pHistogram->resize(numBins);
-	pBinData->resize(numBins);
+	histogramx.resize(numBins);
+	histogramy.resize(numBins);
+	binData.resize(numBins);
 	size_t seriesSize = currentSeries_.seriesData.size();
 	min = (currentSeries_.seriesData[0].first>min)? currentSeries_.seriesData[0].first: min;
 	max = (currentSeries_.seriesData[seriesSize-1].first<max) ? currentSeries_.seriesData[seriesSize-1].first : max;
 	//float max = 1.0f;
 	float binSize = (max-min)/(float)numBins;
-	DebugPrint("Bin Size: %f\n", binSize);
+	//DebugPrint("Bin Size: %f\n", binSize);
 	if(binSize==0.0f){
 		binSize = 1.0f;
 	}
 	for(int i = 0; i<numBins; ++i){
-		(*pHistogram)[i].first = min+(i*binSize);
+		histogramx[i] = min+(i*binSize);
 	}
 	size_t lastBin = 0;
 	float lastVal = min;
-	(*pBinData)[0].first = min;
+	binData[0].first = min;
 	for(int i = 0; i<seriesSize; ++i){
 		std::pair<float, size_t> temp = currentSeries_.seriesData[i];
 		float seriesVal = temp.first;
 		size_t bin = (size_t)((seriesVal-min)/binSize);
-		if(bin!=lastBin){
-			(*pBinData)[lastBin].second = lastVal;
-			(*pBinData)[bin].first = seriesVal;
-		}
 		if(bin>=numBins||bin<0) continue;
-		(*pHistogram)[bin].second += ((seriesName!="") ? dataList_[seriesName][temp.second] : 1.0f);
+		if(bin!=lastBin){
+			binData[lastBin].second = lastVal;
+			binData[bin].first = seriesVal;
+		}
+		histogramy[bin] += ((seriesName!="") ? dataList_[seriesName][temp.second] : 1.0f);
 		lastBin = bin;
 		lastVal = seriesVal;
 	}
-	(*pBinData)[numBins-1].second = max;
+	binData[numBins-1].second = max;
 }
-float DataAnalysis::DataAnalyzer::GetPercentileValue(std::string &seriesName, float percentile){
+void DataAnalysis::DataAnalyzer::GetPercentileValue(const std::string &seriesName, const std::vector<float> &percentile, std::vector<float> &result){
 	if(currentSeries_.seriesName==""){
-		return 0.0f;
+		return;
 	}
+	result.resize(percentile.size());
 	size_t seriesSize = currentSeries_.seriesData.size();
 	std::vector<float> prefixSum(seriesSize+1);
 	for(int i = 0; i<seriesSize; ++i){
@@ -95,19 +106,24 @@ float DataAnalysis::DataAnalyzer::GetPercentileValue(std::string &seriesName, fl
 	}
 	float sum = prefixSum[seriesSize];
 	int idx = 1;
+	int low = 0;
 	for(idx; idx<seriesSize+1; ++idx){
-		if(prefixSum[idx]>percentile*sum) break;
+		for(int i = low; i<percentile.size(); ++i){
+			if(prefixSum[idx]>=percentile[i]*sum){
+				result[i] = currentSeries_.seriesData[idx-1].first;
+				low = i+1;
+				break;
+			}
+		}
 	}
-	return currentSeries_.seriesData[idx-1].first;
-
 }
 
 
-void DataAnalysis::DataAnalyzer::ReturnCurrentSeries(std::vector<std::pair<float, size_t>> *pSeries){
-	(*pSeries) = currentSeries_.seriesData;
+std::vector<std::pair<float, size_t>> *DataAnalysis::DataAnalyzer::ReturnCurrentSeriesP(){
+	return &(currentSeries_.seriesData);
 }
 
-void DataAnalysis::DataAnalyzer::Truncate(float min, float max){
+void DataAnalysis::DataAnalyzer::TruncateByValue(float min, float max){
 	if(currentSeries_.seriesName==""){
 		return;
 	}
@@ -124,8 +140,22 @@ void DataAnalysis::DataAnalyzer::Truncate(float min, float max){
 
 }
 
+void DataAnalysis::DataAnalyzer::TruncateByPercentile(const std::string &seriesName, float min, float max){
+	if(min<0.0||max>100){
+		return;
+	}
+	std::vector<float> percentileVals;
+	GetPercentileValue(seriesName, {min/100.0f,max/100.0f},percentileVals);
+	TruncateByValue(percentileVals[0], percentileVals[1]);
+}
+
 void DataAnalysis::DataAnalyzer::ResetFrame(){
 	frame_.resize(numItems_);
 	std::iota(frame_.begin(), frame_.end(), 0);
 	
+}
+void DataAnalysis::DataAnalyzer::GetSeriesNames(std::vector<std::string_view> &names){
+	for(auto iter = dataList_.begin(); iter!=dataList_.end(); ++iter){
+		names.push_back(iter->first);
+	}
 }

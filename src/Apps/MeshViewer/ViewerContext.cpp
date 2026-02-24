@@ -4,6 +4,7 @@
 #include <Core/AABB.h>
 #include <Core/Application.h>
 #include <Utils/MeshTools.h>
+#include <imgui.h>
 
 
 ViewerContext::ViewerContext(Application* pApp, const std::string &filePath, AsyncJob &asyncThread):
@@ -14,7 +15,8 @@ ViewerContext::ViewerContext(Application* pApp, const std::string &filePath, Asy
 	cameraVelocity_(DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f)),
 	boundingBoxVisible_(false),
 	meshIdx(0),
-	zoom_(1.0f)
+	zoom_(1.0f),
+	pOccluderRankingData_(nullptr)
 {
 	vertexBuffers_[0].pBuffer = nullptr;
 	vertexBuffers_[1].pBuffer = nullptr;
@@ -60,23 +62,21 @@ void ViewerContext::HandleInput(MappedInput &mappedInput){
 			mappedInput.ConsumeAction((size_t)Actions::ZoomOut);
 			break;
 		case Actions::CycleMeshUp:
-			if(meshIdx==occluderRankingData_.size()-1){
+			if(meshIdx==pOccluderRankingData_->size()-1){
 				meshIdx = 0;
 			}
 			else{
 				meshIdx++;
 			}
-			DebugPrint("Occluder Score: %f\n", occluderRankingData_.at(meshIdx).first);
 			mappedInput.ConsumeAction((size_t)Actions::CycleMeshUp);
 		break;
 		case Actions::CycleMeshDown:
 			if(meshIdx==0){
-				meshIdx = occluderRankingData_.size()-1;
+				meshIdx = pOccluderRankingData_->size()-1;
 			}
 			else{
 				meshIdx--;
 			}
-			DebugPrint("Occluder Score: %f\n", occluderRankingData_.at(meshIdx).first);
 			mappedInput.ConsumeAction((size_t)Actions::CycleMeshDown);
 		break;
 
@@ -119,7 +119,10 @@ void ViewerContext::Update(ViewerStateParams &stateParams,double deltaTime, doub
 		}
 		return;
 	}
-
+	if(invalidateRanking_){
+		invalidateRanking_ = false;
+		meshIdx = 0;
+	}
 	if(!buffersUploaded_){
 		ResourceManager *pResourceManager = pApp_->GetResourceManager();
 		pResourceManager->UploadVertexBuffer(indexedVertexData_.data(), indexedVertexData_.size(), sizeof(indexedVertexData_[0]), &vertexBuffers_[0]);
@@ -149,6 +152,21 @@ void ViewerContext::Update(ViewerStateParams &stateParams,double deltaTime, doub
 	const DirectX::XMVECTOR rotationAxis = DirectX::XMVectorSet(0, 1, 0, 0);
 	DirectX::XMMATRIX rotationMatrix = DirectX::XMMatrixRotationAxis(rotationAxis, angle);
 	modelMatrix_ = DirectX::XMMatrixMultiply(modelMatrix_, rotationMatrix);
+
+	ImGui::SetNextWindowSize(ImVec2(stateParams.clientWidth*0.2,stateParams.clientHeight*0.15), 0);
+	ImGui::SetNextWindowPos(ImVec2{0,0});
+	ImGui::Begin("Mesh Info");
+	ImGui::BulletText(occluderOffsetData_[pOccluderRankingData_->at(meshIdx).second].meshId.c_str());
+	ImGui::BulletText("Triangles: %i", occluderOffsetData_[pOccluderRankingData_->at(meshIdx).second].numIndices/3);
+	ImGui::BulletText("Occluder Score: %f", pOccluderRankingData_->at(meshIdx).first);
+	if(ImGui::Button("Open Graph")){
+		stateParams.loadGraph = true ;
+		invalidateRanking_ = true;
+	}
+	else{
+		stateParams.loadGraph = false;
+	}
+	ImGui::End();
 		
 	
 }
@@ -174,8 +192,8 @@ void ViewerContext::Render(D3D12_CPU_DESCRIPTOR_HANDLE rtv,
 		D3D12_RENDER_PASS_DEPTH_STENCIL_DESC dsvDescriptor = {D3D12_RENDER_PASS_DEPTH_STENCIL_DESC{dsv, dsvBeginingAccess,stencilBeginingAccess, dsvEndingAccess, stencilEndingAccess}};
 
 		pCommandList->BeginRenderPass(1, &rtvDescriptor, &dsvDescriptor, D3D12_RENDER_PASS_FLAG_NONE);
-		if(buffersUploaded_){
-			size_t meshIndex = occluderRankingData_.at(meshIdx).second;
+		if(buffersUploaded_&&!invalidateRanking_){
+			size_t meshIndex = pOccluderRankingData_->at(meshIdx).second;
 			OccluderMesh meshInfo = occluderOffsetData_.at(meshIndex);
 			DirectX::XMMATRIX mvpMatrix = DirectX::XMMatrixMultiply(modelMatrix_, DirectX::XMMatrixScaling(zoom_, zoom_, zoom_));
 			mvpMatrix = DirectX::XMMatrixMultiply(mvpMatrix, viewMatrix_);
@@ -207,7 +225,7 @@ void ViewerContext::Render(D3D12_CPU_DESCRIPTOR_HANDLE rtv,
 }
 void ViewerContext::ScaleMesh(){
 	using namespace DirectX;
-	AABB boundingBox = occluderOffsetData_.at(occluderRankingData_.at(meshIdx).second).boundingBox;
+	AABB boundingBox = occluderOffsetData_.at(pOccluderRankingData_->at(meshIdx).second).boundingBox;
 	struct BoundingBox2D{
 		XMFLOAT2 max;
 		XMFLOAT2 min;
@@ -235,7 +253,7 @@ void ViewerContext::ScaleMesh(){
 
 void ViewerContext::CenterMesh(){
 	using namespace DirectX;
-	AABB boundingBox = occluderOffsetData_.at(occluderRankingData_.at(meshIdx).second).boundingBox;
+	AABB boundingBox = occluderOffsetData_.at(pOccluderRankingData_->at(meshIdx).second).boundingBox;
 	XMFLOAT3 bbCenter;
 	boundingBox.GetCenter(bbCenter);
 	XMMATRIX translationMatrix= XMMatrixTranslationFromVector(XMVectorNegate(XMLoadFloat3(&bbCenter)));
@@ -316,7 +334,7 @@ void ViewerContext::ProcessObjFile(
 	}
 
 	size_t listSize = occluderOffsetData_.size();
-	DataAnalysis::DataAnalyzer analyzer(listSize);
+	analyzer_.Init(listSize);
 	std::vector<std::string_view> itemList(listSize);
 	std::vector<float> lengthScaleData(listSize);
 	std::vector<float> occluderScoreData(listSize);
@@ -346,20 +364,18 @@ void ViewerContext::ProcessObjFile(
 		triangleNumData[idx] = pMeshInfo->numIndicesTotal/3.0f;
 	}
 
-	analyzer.SetItemList(std::move(itemList));
-	analyzer.AddDataSeries(std::string("Length Scale"), std::move(lengthScaleData));
-	analyzer.AddDataSeries(std::string("Occluder Score"), std::move(occluderScoreData));
-	analyzer.AddDataSeries(std::string("Triangle Number"), std::move(triangleNumData));
+	analyzer_.SetItemList(std::move(itemList));
+	analyzer_.AddDataSeries(std::string("Length Scale"), std::move(lengthScaleData));
+	analyzer_.AddDataSeries(std::string("Occluder Score"), std::move(occluderScoreData));
+	analyzer_.AddDataSeries(std::string("Triangle Number"), std::move(triangleNumData));
 
-	AnalyzeSceneData(analyzer);
+	AnalyzeSceneData(analyzer_);
 	fileLoaded_ = true;
 }
 
 void ViewerContext::AnalyzeSceneData(DataAnalysis::DataAnalyzer &analyzer){
-	//analyzer.SortBySeries(std::string("Length Scale"));
-	//analyzer.Truncate(1.8f, FLT_MAX);
-	analyzer.SortBySeries(std::string("Occluder Score"));
-	analyzer.ReturnCurrentSeries(&occluderRankingData_);
+	analyzer.SortBySeries("Occluder Score");
+	pOccluderRankingData_= analyzer.ReturnCurrentSeriesP();
 }
 
 void ViewerContext::CreatePipelines(){

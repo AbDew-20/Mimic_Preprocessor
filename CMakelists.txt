@@ -28,10 +28,11 @@ target_compile_definitions(${CMAKE_PROJECT_NAME} PUBLIC RESOURCES_PATH="${CMAKE_
 	CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/config/") # Comment this if you compile a release version and uncomment the next line
 #target_compile_definitions("${CMAKE_PROJECT_NAME}" PUBLIC RESOURCES_PATH="./resources/" SHADERS_PATH="./shaders/" CONFIG_PATH="./config/") # Uncomment this line to setup the PATH macro to the final directory when you share the project
 
-# ImGui directory
+# Third party sources directory
 set(IMGUI_DIR ${CMAKE_SOURCE_DIR}/external/imgui)
+set(IMPLOT_DIR ${CMAKE_SOURCE_DIR}/external/implot)
 
-# ImGui source files
+# Third party source files
 set(IMGUI_SOURCES
     ${IMGUI_DIR}/imgui.cpp
     ${IMGUI_DIR}/imgui_draw.cpp
@@ -42,11 +43,15 @@ set(IMGUI_SOURCES
     ${IMGUI_DIR}/backends/imgui_impl_win32.cpp
     ${IMGUI_DIR}/backends/imgui_impl_dx12.cpp
 )
+set(IMPLOT_SOURCES
+	${IMPLOT_DIR}/implot.cpp
+	${IMPLOT_DIR}/implot_items.cpp
+)
 
-target_include_directories(Mimic_Engine BEFORE PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include/" ${IMGUI_DIR})
+target_include_directories(Mimic_Engine BEFORE PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include/" ${IMGUI_DIR} ${IMPLOT_DIR})
 
-#Exclude ImGui sources from clang-tidy
-add_library(no_static_analysis_code OBJECT ${IMGUI_SOURCES})
+#Exclude thrid party sources from clang-tidy
+add_library(no_static_analysis_code OBJECT ${IMGUI_SOURCES} ${IMPLOT_SOURCES})
 if(ENABLE_CLANG_TIDY AND CMAKE_BUILD_TYPE STREQUAL "Debug")
 	set_target_properties(no_static_analysis_code PROPERTIES CXX_CLANG_TIDY "")
 endif()

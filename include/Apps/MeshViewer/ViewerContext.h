@@ -15,6 +15,7 @@ struct ViewerStateParams{
 	bool loading;
 	bool &asyncStarted;
 	std::string &workType;
+	bool &loadGraph;
 };
 struct OccluderMesh{
 	std::string meshId;
@@ -37,6 +38,9 @@ public:
 	void HandleInput(MappedInput &mappedInput);
 	void Load();
 	void Unload();
+	DataAnalysis::DataAnalyzer& GetAnalyzer(){
+		return analyzer_;
+	}
 protected:
 
 private:
@@ -69,8 +73,10 @@ private:
 	std::vector<VertexPos> bbVertexData_;
 	std::vector<uint32_t> bbIndexData_;
 
+	DataAnalysis::DataAnalyzer analyzer_;
+
 	std::vector<OccluderMesh> occluderOffsetData_;
-	std::vector<std::pair<float, size_t>> occluderRankingData_;
+	std::vector<std::pair<float, size_t>> *pOccluderRankingData_;
 
 	BufferResource vertexBuffers_[2];
 	BufferResource indexBuffers_[2];
@@ -88,4 +94,5 @@ private:
 	float zoom_;
 	bool fileLoaded_ = false;
 	bool buffersUploaded_ = false;
+	bool invalidateRanking_ = false;
 };
