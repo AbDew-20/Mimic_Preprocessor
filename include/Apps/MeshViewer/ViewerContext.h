@@ -10,12 +10,14 @@
 #include <Utils/FileTools.h>
 
 struct ViewerStateParams{
+	bool asyncStarted;
+	std::string workType;
+	bool loadGraph;
+};
+struct ViewerUpdateParams{
 	int clientWidth;
 	int clientHeight;
 	bool loading;
-	bool &asyncStarted;
-	std::string &workType;
-	bool &loadGraph;
 };
 struct OccluderMesh{
 	std::string meshId;
@@ -33,7 +35,7 @@ class Application;
 class ViewerContext{
 public:
 	ViewerContext(Application* pApp, const std::string &filePath, AsyncJob &asyncThread);
-	void Update(ViewerStateParams &stateParams,double deltaTime, double totalTime);
+	void Update(const ViewerUpdateParams &updateParams,double deltaTime, double totalTime, ViewerStateParams &stateParams);
 	void Render(D3D12_CPU_DESCRIPTOR_HANDLE rtv, D3D12_CPU_DESCRIPTOR_HANDLE dsv, ID3D12GraphicsCommandList4* pCommandList,double deltaTime);
 	void HandleInput(MappedInput &mappedInput);
 	void Load();

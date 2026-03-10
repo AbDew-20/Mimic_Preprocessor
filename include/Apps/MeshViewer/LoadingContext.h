@@ -2,7 +2,7 @@
 #include <Core/PCH.h>
 
 struct MappedInput;
-struct LoadingStateParams{
+struct LoadingUpdateParams{
 	int clientWidth;
 	int clientHeight;
 	float percent;
@@ -11,7 +11,7 @@ struct LoadingStateParams{
 class LoadingContext{
 public:
 	LoadingContext(const std::string &label);
-	void Update(LoadingStateParams &stateParams, double deltaTime);
+	void Update(const LoadingUpdateParams &updateParams, double deltaTime);
 	void Render(D3D12_CPU_DESCRIPTOR_HANDLE rtv, D3D12_CPU_DESCRIPTOR_HANDLE dsv, ID3D12GraphicsCommandList4* pCommandList,double deltaTime);
 protected:
 

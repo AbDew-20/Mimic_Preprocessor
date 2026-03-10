@@ -95,9 +95,9 @@ void ViewerContext::HandleInput(MappedInput &mappedInput){
 	cameraVelocity_.x+= (mappedInput.States.find((size_t)States::CameraMovingLeft)!=statesEnd) ? -GetCameraSpeed() : 0.0f;
 }
 
-void ViewerContext::Update(ViewerStateParams &stateParams,double deltaTime, double totalTime){
+void ViewerContext::Update(const ViewerUpdateParams &updateParams,double deltaTime, double totalTime, ViewerStateParams &stateParams){
 	if(!fileLoaded_){
-		if(!stateParams.loading){
+		if(!updateParams.loading){
 			stateParams.asyncStarted = true;
 			stateParams.workType = "Loading File";
 			asyncThread_.Start(&ViewerContext::ProcessObjFile, this, std::cref(filePath_), std::ref(indexedVertexData_), std::ref(indexData_), std::ref(bbVertexData_), std::ref(bbIndexData_));
@@ -144,7 +144,7 @@ void ViewerContext::Update(ViewerStateParams &stateParams,double deltaTime, doub
 	const DirectX::XMVECTOR upDirection = DirectX::XMVectorSet(0, 1, 0, 0);
 	viewMatrix_ = DirectX::XMMatrixLookToLH(eyePostition, DirectX::XMVectorSet(0, 0, 1, 0), upDirection);
 
-	float aspectRatio = stateParams.clientWidth/static_cast<float>(stateParams.clientHeight);
+	float aspectRatio = updateParams.clientWidth/static_cast<float>(updateParams.clientHeight);
 	projectionMatrix_ = DirectX::XMMatrixPerspectiveFovLH(DirectX::XMConvertToRadians(45.0f), aspectRatio, 0.1f, 100.0f);
 
 
@@ -153,7 +153,7 @@ void ViewerContext::Update(ViewerStateParams &stateParams,double deltaTime, doub
 	DirectX::XMMATRIX rotationMatrix = DirectX::XMMatrixRotationAxis(rotationAxis, angle);
 	modelMatrix_ = DirectX::XMMatrixMultiply(modelMatrix_, rotationMatrix);
 
-	ImGui::SetNextWindowSize(ImVec2(stateParams.clientWidth*0.2,stateParams.clientHeight*0.15), 0);
+	ImGui::SetNextWindowSize(ImVec2(updateParams.clientWidth*0.2,updateParams.clientHeight*0.15), 0);
 	ImGui::SetNextWindowPos(ImVec2{0,0});
 	ImGui::Begin("Mesh Info");
 	ImGui::BulletText(occluderOffsetData_[pOccluderRankingData_->at(meshIdx).second].meshId.c_str());

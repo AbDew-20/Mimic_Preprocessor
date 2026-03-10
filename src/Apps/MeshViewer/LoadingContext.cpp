@@ -7,13 +7,13 @@ LoadingContext::LoadingContext(const std::string &label):
 }
 
 
-void LoadingContext::Update(LoadingStateParams &stateParams, double deltatime){
+void LoadingContext::Update(const LoadingUpdateParams &updateParams, double deltatime){
 	ImGuiWindowFlags flags = ImGuiWindowFlags_NoResize|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoTitleBar;
-	ImGui::SetNextWindowPos(ImVec2(stateParams.clientWidth/2, stateParams.clientHeight/2),0, ImVec2(0.5f,0.5f));
+	ImGui::SetNextWindowPos(ImVec2(updateParams.clientWidth/2, updateParams.clientHeight/2),0, ImVec2(0.5f,0.5f));
 	ImGui::Begin("Loading", nullptr ,flags);
-	ImGui::Text(stateParams.label.data());
-	if(stateParams.percent>0){
-		ImGui::ProgressBar(stateParams.percent, ImVec2(-1, 0));
+	ImGui::Text(updateParams.label.data());
+	if(updateParams.percent>0){
+		ImGui::ProgressBar(updateParams.percent, ImVec2(-1, 0));
 	}
 	ImGui::End();
 }

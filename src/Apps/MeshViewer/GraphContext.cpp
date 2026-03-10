@@ -8,8 +8,8 @@ GraphContext::GraphContext(DataAnalysis::DataAnalyzer &analyzer):
 	graphStateVariables_({0, 1, 0, 1, 0, 0.0f, 0.0f, 10.0f, 90.0f, true}){
 
 }
-void GraphContext::Update(GraphStateParams &stateParams, double deltaTime){
-	ImGui::SetNextWindowSize(ImVec2(stateParams.clientWidth,stateParams.clientHeight), 0);
+ void GraphContext::Update(const GraphUpdateParams &updateParams, double deltaTime, GraphStateParams &stateParams){
+	ImGui::SetNextWindowSize(ImVec2(updateParams.clientWidth,updateParams.clientHeight), 0);
 	ImGui::SetNextWindowPos(ImVec2(0, 0));
 	ImGuiWindowFlags flags = ImGuiWindowFlags_NoResize|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoTitleBar;
 

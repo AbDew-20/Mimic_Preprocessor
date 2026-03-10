@@ -4,14 +4,16 @@
 
 struct MappedInput;
 struct GraphStateParams{
+	bool focusVeiwer;
+};
+struct GraphUpdateParams{
 	int clientWidth;
 	int clientHeight;
-	bool &focusVeiwer;
 };
 class GraphContext{
 public:
 	GraphContext(DataAnalysis::DataAnalyzer &analyzer);
-	void Update(GraphStateParams &stateParams,double deltaTime);
+	void Update(const GraphUpdateParams &updateParams,double deltaTime, GraphStateParams &stateParams);
 	void Render(D3D12_CPU_DESCRIPTOR_HANDLE rtv, D3D12_CPU_DESCRIPTOR_HANDLE dsv, ID3D12GraphicsCommandList4* pCommandList,double deltaTime);
 	void HandleInput(MappedInput &mappedInput);
 	void Load(){ return; }

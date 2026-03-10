@@ -177,21 +177,28 @@ void MeshViewer::OnUpdate(double deltaTime, double totalTime){
 			if constexpr(std::is_same_v<T, SplashState>){
 				SplashContext *pSplashContext = GetContext<SplashContext>();
 				assert(pSplashContext !=nullptr&&"Context Missing");
-				SplashStateParams splashParams = {this->GetClientWidth(), this->GetClientHeight(), args.fileSelected, args.filePath};
-				pSplashContext->Update(splashParams, deltaTime);
+				SplashStateParams stateParams = {};
+				SplashUpdateParams updateParams = {this->GetClientWidth(), this->GetClientHeight()};
+				pSplashContext->Update(updateParams, deltaTime, stateParams);
+				args.fileSelected = stateParams.fileSelected;
+				args.filePath = stateParams.fileName;
 				
 			}
 			else if constexpr(std::is_same_v<T, ViewerState>){
 				ViewerContext *pViewerContext = GetContext<ViewerContext>();
 				assert(pViewerContext!=nullptr && "Context Missing");
 
-				ViewerStateParams viewerParams = {this->GetClientWidth(), this->GetClientHeight(), (args.mode==ViewerState::Mode::LOADING), args.asyncStarted, args.workType, args.loadGraph};
-				pViewerContext->Update(viewerParams, deltaTime, totalTime);
+				ViewerStateParams stateParams = {};
+				ViewerUpdateParams updateParams = {this->GetClientWidth(), this->GetClientHeight(), (args.mode==ViewerState::Mode::LOADING)};
+				pViewerContext->Update(updateParams, deltaTime, totalTime, stateParams);
+				args.asyncStarted = stateParams.asyncStarted;
+				args.workType = stateParams.workType;
+				args.loadGraph = stateParams.loadGraph;
 				if(args.mode==ViewerState::Mode::LOADING){
 					LoadingContext *pLoadingContext = GetContext<LoadingContext>();
 					assert(pLoadingContext!=nullptr&&"Context Missing");
 
-					LoadingStateParams loadingParams = {this->GetClientWidth(), this->GetClientHeight(), this->asyncThread_.GetPercent(), args.workType};
+					LoadingUpdateParams loadingParams = {this->GetClientWidth(), this->GetClientHeight(), this->asyncThread_.GetPercent(), args.workType};
 					pLoadingContext->Update(loadingParams, deltaTime);
 					args.asyncFinished = this->asyncThread_.GetCompleted();
 				}
@@ -201,13 +208,15 @@ void MeshViewer::OnUpdate(double deltaTime, double totalTime){
 				GraphContext *pGraphContext = GetContext<GraphContext>();
 				assert(pGraphContext!=nullptr&&"ContextMissing");
 
-				GraphStateParams graphParams = {this->GetClientWidth(), this->GetClientHeight(), args.focusViewer};
-				pGraphContext->Update(graphParams, deltaTime);
+				GraphStateParams stateParams = {};
+				GraphUpdateParams updateParams = {this->GetClientWidth(), this->GetClientHeight()};
+				pGraphContext->Update(updateParams, deltaTime, stateParams);
+				args.focusViewer = stateParams.focusVeiwer;
 				if(args.mode==GraphState::Mode::LOADING){
 					LoadingContext *pLoadingContext = GetContext<LoadingContext>();
 					assert(pLoadingContext!=nullptr&&"Context Missing");
 
-					LoadingStateParams loadingParams = {this->GetClientWidth(), this->GetClientHeight(), this->asyncThread_.GetPercent(), args.workType};
+					LoadingUpdateParams loadingParams = {this->GetClientWidth(), this->GetClientHeight(), this->asyncThread_.GetPercent(), args.workType};
 					pLoadingContext->Update(loadingParams, deltaTime);
 					args.asyncFinished = this->asyncThread_.GetCompleted();
 				}
