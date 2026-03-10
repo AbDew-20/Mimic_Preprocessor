@@ -4,7 +4,8 @@
 
 
 GraphContext::GraphContext(DataAnalysis::DataAnalyzer &analyzer):
-	analyzer_(analyzer){
+	analyzer_(analyzer),
+	graphStateVariables_({0, 1, 0, 1, 0, 0.0f, 0.0f, 10.0f, 90.0f, true}){
 
 }
 void GraphContext::Update(GraphStateParams &stateParams, double deltaTime){
@@ -15,9 +16,6 @@ void GraphContext::Update(GraphStateParams &stateParams, double deltaTime){
 	std::vector<std::string_view> seriesNames;
 	seriesNames.push_back("Item Count");
 	analyzer_.GetSeriesNames(seriesNames);
-	static int lastYAxisItemSelectedIdx = 0;
-	static int lastXAxisItemSelectedIdx = 1;
-	static bool updateGraph = true;
 	ImGui::Begin("GraphViewer", nullptr, flags);
 	float graphHeight = 0.45*ImGui::GetWindowSize().y;
 	ImGui::BeginChild("Graph", ImVec2(0, graphHeight));
@@ -35,17 +33,16 @@ void GraphContext::Update(GraphStateParams &stateParams, double deltaTime){
 	std::vector<float> histogramx;
 	std::vector<float> histogramy;
 	std::vector<std::pair<float, float>> binData;
-	static float valueBegin = 0.0f, valueEnd = 0.0f;
 	static ImVec2 xAxisExtents(0,0);
-	if(updateGraph){
-		analyzer_.SortBySeries(std::string(seriesNames[lastXAxisItemSelectedIdx]));
+	if(graphStateVariables_.updateGraph){
+		analyzer_.SortBySeries(std::string(seriesNames[graphStateVariables_.lastXAxisItemSelectedIdx]));
 		std::pair<float,float> seriesExtents =  analyzer_.GetCurrentSeriesExtents();
 		xAxisExtents = {seriesExtents.first, seriesExtents.second};
-		valueBegin = xAxisExtents.x;
-		valueEnd = xAxisExtents.y;
-		updateGraph = false;
+		graphStateVariables_.valueBegin= xAxisExtents.x;
+		graphStateVariables_.valueEnd = xAxisExtents.y;
+		graphStateVariables_.updateGraph = false;
 	}
-	std::string yAxisSeries = (lastYAxisItemSelectedIdx==0) ? "" : std::string(seriesNames[lastYAxisItemSelectedIdx]);
+	std::string yAxisSeries = (graphStateVariables_.lastYAxisItemSelectedIdx==0) ? "" : std::string(seriesNames[graphStateVariables_.lastYAxisItemSelectedIdx]);
 	analyzer_.GenerateHistogram(yAxisSeries, 100, 0, FLT_MAX, histogramx, histogramy, binData);
 	if(ImPlot::BeginPlot("Scene Data")){
 		ImPlot::PlotBars("Test", histogramx.data(), histogramy.data(), histogramx.size(), 1.0);
@@ -54,8 +51,6 @@ void GraphContext::Update(GraphStateParams &stateParams, double deltaTime){
 	ImGui::EndChild();
 
 	ImGui::BeginChild("Controls", ImVec2(0, 0));
-	static int yAxisItemSelectedIdx = 0;
-	static int xAxisItemSelectedIdx = 1;
 	
 	float footerHeight = 0.0f;
 	footerHeight += ImGui::GetFrameHeightWithSpacing();
@@ -72,9 +67,9 @@ void GraphContext::Update(GraphStateParams &stateParams, double deltaTime){
 		ImGui::Text("Y-Axis");
 		if(ImGui::BeginListBox("##YAxis")){
 			for(int n = 0; n<seriesNames.size(); ++n){
-				const bool isSelected = (yAxisItemSelectedIdx==n);
-				if(n!=xAxisItemSelectedIdx&&ImGui::Selectable(seriesNames[n].data(), isSelected)){
-					yAxisItemSelectedIdx = n;
+				const bool isSelected = (graphStateVariables_.yAxisItemSelectedIdx==n);
+				if(n!=graphStateVariables_.xAxisItemSelectedIdx&&ImGui::Selectable(seriesNames[n].data(), isSelected)){
+					graphStateVariables_.yAxisItemSelectedIdx = n;
 				}
 				if(isSelected){
 					ImGui::SetItemDefaultFocus();
@@ -91,9 +86,9 @@ void GraphContext::Update(GraphStateParams &stateParams, double deltaTime){
 		ImGui::Text("X-Axis");
 		if(ImGui::BeginListBox("##XAxis")){
 			for(int n = 1; n<seriesNames.size(); ++n){
-				const bool isSelected = (xAxisItemSelectedIdx==n);
-				if(n!=yAxisItemSelectedIdx&&ImGui::Selectable(seriesNames[n].data(), isSelected)){
-					xAxisItemSelectedIdx = n;
+				const bool isSelected = (graphStateVariables_.xAxisItemSelectedIdx==n);
+				if(n!=graphStateVariables_.yAxisItemSelectedIdx&&ImGui::Selectable(seriesNames[n].data(), isSelected)){
+					graphStateVariables_.xAxisItemSelectedIdx = n;
 				}
 				if(isSelected){
 					ImGui::SetItemDefaultFocus();
@@ -104,9 +99,9 @@ void GraphContext::Update(GraphStateParams &stateParams, double deltaTime){
 		ImGui::EndGroup();
 	}
 	if(ImGui::Button("Update Axes")){
-		lastYAxisItemSelectedIdx = yAxisItemSelectedIdx;
-		lastXAxisItemSelectedIdx = xAxisItemSelectedIdx;
-		updateGraph = true;
+		graphStateVariables_.lastYAxisItemSelectedIdx = graphStateVariables_.yAxisItemSelectedIdx;
+		graphStateVariables_.lastXAxisItemSelectedIdx = graphStateVariables_.xAxisItemSelectedIdx;
+		graphStateVariables_.updateGraph = true;
 	}
 
 	ImGui::PopItemWidth();
@@ -121,7 +116,7 @@ void GraphContext::Update(GraphStateParams &stateParams, double deltaTime){
 		ImGui::DragFloatRange2("Percentile Range", &percentileBegin, &percentileEnd, 0.25f, 0.0f, 100.0f, "Min: %.1f %%", "Max: %.1f %%");
 	}
 	else{
-		ImGui::DragFloatRange2("Value Range", &valueBegin, &valueEnd,speed , xAxisExtents.x, xAxisExtents.y, "Min: %.1f", "Max: %.1f");
+		ImGui::DragFloatRange2("Value Range", &graphStateVariables_.valueBegin, &graphStateVariables_.valueEnd,speed , xAxisExtents.x, xAxisExtents.y, "Min: %.1f", "Max: %.1f");
 	}
 
 	if(ImGui::Button("Truncate")){
@@ -129,9 +124,9 @@ void GraphContext::Update(GraphStateParams &stateParams, double deltaTime){
 			analyzer_.TruncateByPercentile(yAxisSeries,percentileBegin, percentileEnd);
 		}
 		else{
-			analyzer_.TruncateByValue(valueBegin, valueEnd);
+			analyzer_.TruncateByValue(graphStateVariables_.valueBegin, graphStateVariables_.valueEnd);
 		}
-		updateGraph = true;
+		graphStateVariables_.updateGraph = true;
 	}
 	ImGui::SetItemTooltip("Truncates the data set based on raw or percentile values");
 
@@ -146,7 +141,7 @@ void GraphContext::Update(GraphStateParams &stateParams, double deltaTime){
 	ImGui::SameLine();
 	if(ImGui::Button("Reset Graph")){
 		analyzer_.ResetFrame();
-		updateGraph = true;
+		graphStateVariables_.updateGraph = true;
 	}
 	ImGui::SetItemTooltip("Resets any truncations");
 	ImGui::SameLine();

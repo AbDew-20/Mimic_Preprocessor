@@ -19,6 +19,19 @@ public:
 protected:
 
 private:
+	struct GraphStateVars{
+		int lastYAxisItemSelectedIdx;
+		int lastXAxisItemSelectedIdx;
+		int yAxisItemSelectedIdx;
+		int xAxisItemSelectedIdx;
+		int selectionType;
+		float valueBegin; 
+		float valueEnd;
+		float percentileBegin;
+		float percentileEnd;
+		bool updateGraph;
+	};
 	DataAnalysis::DataAnalyzer &analyzer_;
+	GraphStateVars graphStateVariables_;
 		
 };
