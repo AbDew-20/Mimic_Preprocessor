@@ -3,7 +3,7 @@
 #include <Core/Game.h>
 #include <Core/KeyCodes.h>
 #include <backends/imgui_impl_win32.h>
-constexpr wchar_t kWindowClassName[] = L"Mimic_Engine";
+constexpr wchar_t kWindowClassName[] = L"Mimic_Preprocessor";
 static LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
 void Application::EnableDebugLayers(){
 #if defined(_DEBUG)
