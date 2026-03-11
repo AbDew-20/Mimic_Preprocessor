@@ -5,7 +5,7 @@ set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Release>:Release>")
 set(CMAKE_VS_WINDOWS_TARGET_PLATFORM_MIN_VERSION "10.0.18362.0")
 
-project(Mimic_Engine)
+project(Mimic_Preprocessor)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -20,9 +20,9 @@ if(ENABLE_CLANG_TIDY AND CMAKE_BUILD_TYPE STREQUAL "Debug")
 endif()
 
 file(GLOB_RECURSE MY_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
-add_executable(Mimic_Engine WIN32 ${MY_SOURCES})
+add_executable(Mimic_Preprocessor WIN32 ${MY_SOURCES})
 
-target_compile_features(Mimic_Engine PRIVATE cxx_std_17)
+target_compile_features(Mimic_Preprocessor PRIVATE cxx_std_17)
 target_compile_definitions(${CMAKE_PROJECT_NAME} PUBLIC RESOURCES_PATH="${CMAKE_CURRENT_SOURCE_DIR}/resources/"
 	PUBLIC SHADERS_PATH="${CMAKE_CURRENT_SOURCE_DIR}/shaders/"
 	CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/config/") # Comment this if you compile a release version and uncomment the next line
@@ -48,7 +48,7 @@ set(IMPLOT_SOURCES
 	${IMPLOT_DIR}/implot_items.cpp
 )
 
-target_include_directories(Mimic_Engine BEFORE PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include/" ${IMGUI_DIR} ${IMPLOT_DIR})
+target_include_directories(Mimic_Preprocessor BEFORE PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include/" ${IMGUI_DIR} ${IMPLOT_DIR})
 
 #Exclude thrid party sources from clang-tidy
 add_library(no_static_analysis_code OBJECT ${IMGUI_SOURCES} ${IMPLOT_SOURCES})
@@ -56,11 +56,11 @@ if(ENABLE_CLANG_TIDY AND CMAKE_BUILD_TYPE STREQUAL "Debug")
 	set_target_properties(no_static_analysis_code PROPERTIES CXX_CLANG_TIDY "")
 endif()
 target_include_directories(no_static_analysis_code SYSTEM PUBLIC ${IMGUI_DIR})
-target_sources(Mimic_Engine PRIVATE $<TARGET_OBJECTS:no_static_analysis_code>)
+target_sources(Mimic_Preprocessor PRIVATE $<TARGET_OBJECTS:no_static_analysis_code>)
 
 #Link libraries
-target_link_libraries(Mimic_Engine PRIVATE d3d12 dxgi dxguid dxcompiler.lib ${CMAKE_CURRENT_SOURCE_DIR}/thirdParty/meshoptimizer/lib/meshoptimizer.lib $<$<CONFIG:Debug>:${CMAKE_CURRENT_SOURCE_DIR}/thirdParty/DirectXTex/lib/DirectXTex_debug.lib>
+target_link_libraries(Mimic_Preprocessor PRIVATE d3d12 dxgi dxguid dxcompiler.lib ${CMAKE_CURRENT_SOURCE_DIR}/thirdParty/meshoptimizer/lib/meshoptimizer.lib $<$<CONFIG:Debug>:${CMAKE_CURRENT_SOURCE_DIR}/thirdParty/DirectXTex/lib/DirectXTex_debug.lib>
     $<$<CONFIG:Release>:${CMAKE_CURRENT_SOURCE_DIR}/thirdParty/DirectXTex/lib/DirectXTex.lib>)
 #Copy dll files to .exe directory
-add_custom_command(TARGET Mimic_Engine POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/dxc/bin/dxcompiler.dll $<TARGET_FILE_DIR:Mimic_Engine>)
+add_custom_command(TARGET Mimic_Preprocessor POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/dxc/bin/dxcompiler.dll $<TARGET_FILE_DIR:Mimic_Preprocessor>)
 
