@@ -4,6 +4,7 @@
 #include <Core/AABB.h>
 #include <Core/Application.h>
 #include <Utils/MeshTools.h>
+#include <Utils/StringTools.h>
 #include <imgui.h>
 
 
@@ -153,12 +154,15 @@ void ViewerContext::Update(const ViewerUpdateParams &updateParams,double deltaTi
 	DirectX::XMMATRIX rotationMatrix = DirectX::XMMatrixRotationAxis(rotationAxis, angle);
 	modelMatrix_ = DirectX::XMMatrixMultiply(modelMatrix_, rotationMatrix);
 
-	ImGui::SetNextWindowSize(ImVec2(updateParams.clientWidth*0.2,updateParams.clientHeight*0.15), 0);
+	ImGui::SetNextWindowSize(ImVec2(updateParams.clientWidth*0.2,updateParams.clientHeight*0.2), 0);
 	ImGui::SetNextWindowPos(ImVec2{0,0});
 	ImGui::Begin("Mesh Info");
 	ImGui::BulletText(occluderOffsetData_[pOccluderRankingData_->at(meshIdx).second].meshId.c_str());
 	ImGui::BulletText("Triangles: %i", occluderOffsetData_[pOccluderRankingData_->at(meshIdx).second].numIndices/3);
 	ImGui::BulletText("Occluder Score: %f", pOccluderRankingData_->at(meshIdx).first);
+	if(ImGui::Button("Write order to file")){
+		WriteOccluderRankingToFile("occluder.txt");
+	}
 	if(ImGui::Button("Open Graph")){
 		stateParams.loadGraph = true ;
 		invalidateRanking_ = true;
@@ -467,4 +471,24 @@ void ViewerContext::CreatePipelines(){
 		sizeof(pipelineStateStream), &pipelineStateStream
 	};
 	pipelines_[1].pPipelineState = pPipelineManager->CreatePipelineState(pipelineStateStreamDesc);
+}
+void ViewerContext::WriteOccluderRankingToFile(const std::string &fileName){
+	std::vector<std::string_view> tokens;
+	StringTools::ParseString(filePath_, '\\', &tokens);
+	std::string filePath ="";
+	for(int i = 0; i<tokens.size()-1; ++i){
+		filePath.append(tokens[i]);
+		filePath.append("\\");
+	}
+	filePath.append(fileName);
+	std::vector<char> meshIds;
+	for(int i = 0; i<pOccluderRankingData_->size(); ++i){
+		std::string_view meshId(occluderOffsetData_[pOccluderRankingData_->at(i).second].meshId);
+		meshIds.reserve(meshIds.size()+meshId.size()+1);
+		for(int j = 0; j<meshId.size(); ++j){
+			meshIds.push_back(meshId[j]);
+		}
+		meshIds.push_back('\n');
+	}
+	FileTools::WriteBufferToFile(filePath, meshIds);
 }

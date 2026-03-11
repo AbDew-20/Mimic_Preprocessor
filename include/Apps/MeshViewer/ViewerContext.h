@@ -63,6 +63,8 @@ private:
 		std::vector<uint32_t> &bbIndexData,
 		JobState &state);
 
+	void WriteOccluderRankingToFile(const std::string &fileName);
+
 	inline constexpr float GetCameraSpeed(){ return 1.0f; }
 	std::string filePath_;
 	AsyncJob &asyncThread_;

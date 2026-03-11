@@ -4,7 +4,7 @@
 
 namespace StringTools{
 
-	void ParseString(std::string_view string, const char delim, std::vector<std::string_view> *pTokenList){
+	inline void ParseString(std::string_view string, const char delim, std::vector<std::string_view> *pTokenList){
 		size_t runningOffset = 0;
 		while(string.size()>runningOffset){
 			size_t offset = string.find_first_of(delim, runningOffset);
@@ -16,7 +16,7 @@ namespace StringTools{
 		}
 
 	}
-	void ParseLines(size_t startOffset,const char *pBuffer, size_t bufferSize, std::vector<std::string_view> *pLines){
+	inline void ParseLines(size_t startOffset,const char *pBuffer, size_t bufferSize, std::vector<std::string_view> *pLines){
 		const char *end = pBuffer+bufferSize;
 		const char *lastLine = end;
 		const char *startView = pBuffer;

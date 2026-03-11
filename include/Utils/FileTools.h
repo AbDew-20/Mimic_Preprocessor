@@ -33,6 +33,7 @@ struct MaterialInfo{
 };
 namespace FileTools{
 	void LoadFileToBuffer(const std::string &filePath, std::vector<char> *pBuffer);
+	void WriteBufferToFile(const std::string &filePath, const std::vector<char> &buffer);
 
 	class Obj{
 	public:
