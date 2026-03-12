@@ -48,4 +48,4 @@ Uses the following third party software:
 
 ## License
 
-This library is available to anybody free of charge, under the terms of [MIT License](LICENSE.md).
+This tool is available to anybody free of charge, under the terms of [MIT License](LICENSE).
