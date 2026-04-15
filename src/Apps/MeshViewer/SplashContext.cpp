@@ -2,6 +2,7 @@
 #include <Apps/MeshViewer/SplashContext.h>
 #include <imgui.h>
 #include <ShObjIdl.h>
+#include <Utils/FileTools/Pak.h>
 
 
 SplashContext::SplashContext(){

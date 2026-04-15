@@ -116,7 +116,7 @@ void FileTools::LoadFileToBuffer(const std::string &filePath, std::vector<char> 
 
 void FileTools::WriteBufferToFile(const std::string &filePath, const std::vector<char> &buffer){
 	std::ofstream file(filePath.data(), std::ofstream::trunc);
-	assert(file.is_open()&&"Erroe creating and opening file");
+	assert(file.is_open()&&"Error creating and opening file");
 	file<<buffer.data();
 	file.close();
 }

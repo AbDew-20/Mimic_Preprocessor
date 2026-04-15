@@ -5,6 +5,8 @@
 #include <Core/Application.h>
 #include <Utils/MeshTools.h>
 #include <Utils/StringTools.h>
+#include <Utils/FileTools/Pak.h>
+#include <Utils/FileTools/Mvtx.h>
 #include <imgui.h>
 
 
@@ -491,4 +493,40 @@ void ViewerContext::WriteOccluderRankingToFile(const std::string &fileName){
 		meshIds.push_back('\n');
 	}
 	FileTools::WriteBufferToFile(filePath, meshIds);
+}
+
+void ViewerContext::SerializeBuffers(){
+	std::string file("Test.pak");
+	std::string dir(RESOURCES_PATH);
+	FileTools::Pak pak(file,dir);
+	pak.OpenPak();
+	auto writeStream = pak.OpenItemWriteStream("mesh.mvtx");
+	FileTools::MVertex mvtx;
+	std::byte *byteArray = (std::byte *)indexedVertexData_.data();
+	size_t arraySizeInBytes = indexedVertexData_.size()*sizeof(VertexPosTexNorm);
+	std::vector<std::byte>vertexData(byteArray,byteArray+arraySizeInBytes);
+	VertexLayout layout = {sizeof(VertexPosTexNorm), std::vector<VertexAttributeDesc>(std::begin(VertexPosTexNorm::attributeData), std::end(VertexPosTexNorm::attributeData))};
+	mvtx.Serialize(vertexData, indexData_, layout, writeStream);
+	pak.CloseItemWriteStream();
+	pak.ClosePak();
+}
+
+void ViewerContext::DeserializeBuffers(){
+	std::string file("Test.pak");
+	std::string dir(RESOURCES_PATH);
+	FileTools::Pak pak(file,dir);
+	pak.OpenPak();
+	std::vector<FileTools::PakItemInfo> pakInfo = pak.ReturnPakInfo();
+	auto readStream = pak.OpenItemReadStream(0);
+	FileTools::MVertex mvtx;
+	std::vector<std::byte> vertexData;
+	std::vector<uint32_t> indexData;
+	VertexLayout layout;
+	mvtx.Deserialize(vertexData, indexData, layout, readStream);
+	pak.CloseItemReadStream();
+	pak.ClosePak();
+	if(VertexTypes::matches<VertexPosTexNorm>(layout)){
+		VertexPosTexNorm *data = (VertexPosTexNorm*)vertexData.data();
+		std::vector<VertexPosTexNorm> vertexTypedData(data, data+(vertexData.size()/layout.stride));
+	}
 }

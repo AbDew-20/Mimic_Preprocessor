@@ -64,6 +64,8 @@ private:
 		JobState &state);
 
 	void WriteOccluderRankingToFile(const std::string &fileName);
+	void SerializeBuffers();
+	void DeserializeBuffers();
 
 	inline constexpr float GetCameraSpeed(){ return 1.0f; }
 	std::string filePath_;
