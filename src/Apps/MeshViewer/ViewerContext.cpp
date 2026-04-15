@@ -156,11 +156,12 @@ void ViewerContext::Update(const ViewerUpdateParams &updateParams,double deltaTi
 	DirectX::XMMATRIX rotationMatrix = DirectX::XMMatrixRotationAxis(rotationAxis, angle);
 	modelMatrix_ = DirectX::XMMatrixMultiply(modelMatrix_, rotationMatrix);
 
-	ImGui::SetNextWindowSize(ImVec2(updateParams.clientWidth*0.2,updateParams.clientHeight*0.2), 0);
+	ImGui::SetNextWindowSize(ImVec2(updateParams.clientWidth*0.2,updateParams.clientHeight*0.25), 0);
 	ImGui::SetNextWindowPos(ImVec2{0,0});
 	ImGui::Begin("Mesh Info");
 	ImGui::BulletText(occluderOffsetData_[pOccluderRankingData_->at(meshIdx).second].meshId.c_str());
 	ImGui::BulletText("Triangles: %i", occluderOffsetData_[pOccluderRankingData_->at(meshIdx).second].numIndices/3);
+	ImGui::BulletText("Alpha tested triangles: %i", (occluderOffsetData_[pOccluderRankingData_->at(meshIdx).second].numIndicesTotal - occluderOffsetData_[pOccluderRankingData_->at(meshIdx).second].numIndices)/3);
 	ImGui::BulletText("Occluder Score: %f", pOccluderRankingData_->at(meshIdx).first);
 	if(ImGui::Button("Write order to file")){
 		WriteOccluderRankingToFile("occluder.txt");
@@ -315,27 +316,27 @@ void ViewerContext::ProcessObjFile(
 	for(uint32_t i = 0; i<subMeshData_.size(); ++i){
 		state.percent = float(i)/subMeshData_.size();
 		temp = subMeshData_[i];
+		uint64_t opaqueIndices = temp.alphaTested? 0:temp.numIndices;
+		uint64_t opaqueVertices = temp.alphaTested? 0:temp.numVertices;
 		if(temp.objName!=currObject){
-			occluderOffsetData_.push_back({temp.objName, temp.indexOffset, temp.numIndices, temp.numIndices,  temp.vertexOffset, temp.numVertices,temp.numVertices, 0.0f, AABB()});
+			occluderOffsetData_.push_back({temp.objName, temp.indexOffset, opaqueIndices, temp.numIndices,  temp.vertexOffset, opaqueVertices,temp.numVertices, 0.0f, AABB()});
 			currObject = temp.objName;
 			continue;
 		}
 		if(temp.groupName!=currGroup&&temp.objName==""){
-			occluderOffsetData_.push_back({temp.groupName, temp.indexOffset, temp.numIndices, temp.numIndices,  temp.vertexOffset, temp.numVertices,temp.numVertices, 0.0f, AABB()});
+			occluderOffsetData_.push_back({temp.groupName, temp.indexOffset, opaqueIndices, temp.numIndices,  temp.vertexOffset, opaqueVertices,temp.numVertices, 0.0f, AABB()});
 			currGroup = temp.groupName;
 			continue;
 		}
 		if(temp.material!=currMaterial&&temp.objName==""&&temp.groupName==""){
-			occluderOffsetData_.push_back({temp.material, temp.indexOffset, temp.numIndices, temp.numIndices,  temp.vertexOffset, temp.numVertices,temp.numVertices, 0.0f, AABB()});
+			occluderOffsetData_.push_back({temp.material, temp.indexOffset, opaqueIndices, temp.numIndices,  temp.vertexOffset, opaqueVertices,temp.numVertices, 0.0f, AABB()});
 			currMaterial = temp.material;
 			continue;
 		}
 		occluderOffsetData_.back().numIndicesTotal += temp.numIndices;
 		occluderOffsetData_.back().numVerticesTotal += temp.numVertices;
-		if(!temp.alphaTested){
-			occluderOffsetData_.back().numIndices += temp.numIndices;
-			occluderOffsetData_.back().numVertices += temp.numVertices;
-		}
+		occluderOffsetData_.back().numIndices += opaqueIndices;
+		occluderOffsetData_.back().numVertices += opaqueVertices;
 	
 	}
 
@@ -357,16 +358,22 @@ void ViewerContext::ProcessObjFile(
 		double exp = std::log2((double)pMeshInfo->numIndices/30.0);
 		size_t maxLimit = (size_t)std::pow(2, (size_t)exp);
 		size_t minLimit = (size_t)std::pow(2, (size_t)(exp/4));
-		MeshTools::GenerateAABBData(indexedVertexData.data(), indexedVertexData.size(), indexData.data()+pMeshInfo->indexOffset, pMeshInfo->numIndices, maxLimit, &maxBoundingBoxData);
-		MeshTools::GenerateAABBData(indexedVertexData.data(), indexedVertexData.size(), indexData.data()+pMeshInfo->indexOffset, pMeshInfo->numIndices, minLimit, &minBoundingBoxData);
-		MeshTools::PushBackMeshAABBWireFrame(maxBoundingBoxData.back(), bbVertexData, bbIndexData);
-		float occluderScore = MeshTools::GetOccluderPotential(minBoundingBoxData, maxBoundingBoxData, pMeshInfo->numIndicesTotal/3);
-		AABB boundingBox = maxBoundingBoxData.back();
-		pMeshInfo->occluderScore = occluderScore;
-		pMeshInfo->boundingBox = boundingBox;
+		if(pMeshInfo->numIndices>0){
+			MeshTools::GenerateAABBData(indexedVertexData.data(), indexedVertexData.size(), indexData.data()+pMeshInfo->indexOffset, pMeshInfo->numIndices, maxLimit, &maxBoundingBoxData);
+			MeshTools::GenerateAABBData(indexedVertexData.data(), indexedVertexData.size(), indexData.data()+pMeshInfo->indexOffset, pMeshInfo->numIndices, minLimit, &minBoundingBoxData);
+			MeshTools::PushBackMeshAABBWireFrame(maxBoundingBoxData.back(), bbVertexData, bbIndexData);
+			float occluderScore = MeshTools::GetOccluderPotential(minBoundingBoxData, maxBoundingBoxData, pMeshInfo->numIndicesTotal/3);
+			AABB boundingBox = maxBoundingBoxData.back();
+			pMeshInfo->occluderScore = occluderScore;
+			pMeshInfo->boundingBox = boundingBox;
+		}
+		else{
+			pMeshInfo->boundingBox = MeshTools::GetAABB(indexedVertexData.data()+ pMeshInfo->vertexOffset,pMeshInfo->numVerticesTotal);
+			pMeshInfo->occluderScore = 0.0f;
+		}
 		itemList[idx] = pMeshInfo->meshId;
-		lengthScaleData[idx] = boundingBox.GetDiagonalLength();
-		occluderScoreData[idx] = (occluderScore)? occluderScore*boundingBox.GetAABBSurfaceArea() : 0.0f;
+		lengthScaleData[idx] = pMeshInfo->boundingBox.GetDiagonalLength();
+		occluderScoreData[idx] = pMeshInfo->occluderScore*pMeshInfo->boundingBox.GetAABBSurfaceArea();
 		triangleNumData[idx] = pMeshInfo->numIndicesTotal/3.0f;
 	}
 
