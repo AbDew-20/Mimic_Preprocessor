@@ -8,24 +8,25 @@
 
 
 
+
 namespace FileTools{
 
 	class MScene{
 		struct MeshInfo{
 			char id[36];
-			float occluderScore;
-			uint64_t indexOffset;
-			uint32_t numIndices;
-			uint32_t numIndicesTotal;
-			uint64_t vertexOffset;
-			uint32_t numVertices;
-			uint32_t numVerticesTotal;
+			float occluderScore = 0.0f;
+			uint64_t indexOffset = 0ULL;
+			uint32_t numIndices = 0UL;
+			uint32_t numIndicesTotal = 0UL;
+			uint64_t vertexOffset = 0ULL;
+			uint32_t numVertices = 0UL;
+			uint32_t numVerticesTotal = 0UL;
 			AABB boundingBox;
 		};
 		struct Header{
-			uint32_t dataOffset;
-			uint32_t sceneSize;
-			uint32_t numOccluders;
+			uint32_t dataOffset = 0UL;
+			uint32_t sceneSize = 0UL;
+			uint32_t numOccluders = 0UL;
 		};
 
 	public:
