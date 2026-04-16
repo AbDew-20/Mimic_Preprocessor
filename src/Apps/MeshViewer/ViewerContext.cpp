@@ -5,6 +5,10 @@
 #include <Core/Application.h>
 #include <Utils/MeshTools.h>
 #include <Utils/StringTools.h>
+#include <Utils/FileTools.h>
+#include <Utils/FileTools/Pak.h>
+#include <Utils/FileTools/Mvtx.h>
+#include <Utils/FileTools/Mscn.h>
 #include <imgui.h>
 
 
@@ -154,11 +158,12 @@ void ViewerContext::Update(const ViewerUpdateParams &updateParams,double deltaTi
 	DirectX::XMMATRIX rotationMatrix = DirectX::XMMatrixRotationAxis(rotationAxis, angle);
 	modelMatrix_ = DirectX::XMMatrixMultiply(modelMatrix_, rotationMatrix);
 
-	ImGui::SetNextWindowSize(ImVec2(updateParams.clientWidth*0.2,updateParams.clientHeight*0.2), 0);
+	ImGui::SetNextWindowSize(ImVec2(updateParams.clientWidth*0.2,updateParams.clientHeight*0.25), 0);
 	ImGui::SetNextWindowPos(ImVec2{0,0});
 	ImGui::Begin("Mesh Info");
 	ImGui::BulletText(occluderOffsetData_[pOccluderRankingData_->at(meshIdx).second].meshId.c_str());
 	ImGui::BulletText("Triangles: %i", occluderOffsetData_[pOccluderRankingData_->at(meshIdx).second].numIndices/3);
+	ImGui::BulletText("Alpha tested triangles: %i", (occluderOffsetData_[pOccluderRankingData_->at(meshIdx).second].numIndicesTotal - occluderOffsetData_[pOccluderRankingData_->at(meshIdx).second].numIndices)/3);
 	ImGui::BulletText("Occluder Score: %f", pOccluderRankingData_->at(meshIdx).first);
 	if(ImGui::Button("Write order to file")){
 		WriteOccluderRankingToFile("occluder.txt");
@@ -313,27 +318,27 @@ void ViewerContext::ProcessObjFile(
 	for(uint32_t i = 0; i<subMeshData_.size(); ++i){
 		state.percent = float(i)/subMeshData_.size();
 		temp = subMeshData_[i];
+		uint32_t opaqueIndices = temp.alphaTested? 0:temp.numIndices;
+		uint32_t opaqueVertices = temp.alphaTested? 0:temp.numVertices;
 		if(temp.objName!=currObject){
-			occluderOffsetData_.push_back({temp.objName, temp.indexOffset, temp.numIndices, temp.numIndices,  temp.vertexOffset, temp.numVertices,temp.numVertices, 0.0f, AABB()});
+			occluderOffsetData_.push_back({temp.objName, temp.indexOffset, temp.vertexOffset, opaqueIndices, (uint32_t)temp.numIndices, opaqueVertices,(uint32_t)temp.numVertices, AABB(), 0.0f});
 			currObject = temp.objName;
 			continue;
 		}
 		if(temp.groupName!=currGroup&&temp.objName==""){
-			occluderOffsetData_.push_back({temp.groupName, temp.indexOffset, temp.numIndices, temp.numIndices,  temp.vertexOffset, temp.numVertices,temp.numVertices, 0.0f, AABB()});
+			occluderOffsetData_.push_back({temp.groupName, temp.indexOffset,  temp.vertexOffset, opaqueIndices, temp.numIndices, opaqueVertices,temp.numVertices, AABB(), 0.0f});
 			currGroup = temp.groupName;
 			continue;
 		}
 		if(temp.material!=currMaterial&&temp.objName==""&&temp.groupName==""){
-			occluderOffsetData_.push_back({temp.material, temp.indexOffset, temp.numIndices, temp.numIndices,  temp.vertexOffset, temp.numVertices,temp.numVertices, 0.0f, AABB()});
+			occluderOffsetData_.push_back({temp.material, temp.indexOffset,  temp.vertexOffset, opaqueIndices, temp.numIndices, opaqueVertices,temp.numVertices, AABB(), 0.0f});
 			currMaterial = temp.material;
 			continue;
 		}
 		occluderOffsetData_.back().numIndicesTotal += temp.numIndices;
 		occluderOffsetData_.back().numVerticesTotal += temp.numVertices;
-		if(!temp.alphaTested){
-			occluderOffsetData_.back().numIndices += temp.numIndices;
-			occluderOffsetData_.back().numVertices += temp.numVertices;
-		}
+		occluderOffsetData_.back().numIndices += opaqueIndices;
+		occluderOffsetData_.back().numVertices += opaqueVertices;
 	
 	}
 
@@ -355,16 +360,22 @@ void ViewerContext::ProcessObjFile(
 		double exp = std::log2((double)pMeshInfo->numIndices/30.0);
 		size_t maxLimit = (size_t)std::pow(2, (size_t)exp);
 		size_t minLimit = (size_t)std::pow(2, (size_t)(exp/4));
-		MeshTools::GenerateAABBData(indexedVertexData.data(), indexedVertexData.size(), indexData.data()+pMeshInfo->indexOffset, pMeshInfo->numIndices, maxLimit, &maxBoundingBoxData);
-		MeshTools::GenerateAABBData(indexedVertexData.data(), indexedVertexData.size(), indexData.data()+pMeshInfo->indexOffset, pMeshInfo->numIndices, minLimit, &minBoundingBoxData);
-		MeshTools::PushBackMeshAABBWireFrame(maxBoundingBoxData.back(), bbVertexData, bbIndexData);
-		float occluderScore = MeshTools::GetOccluderPotential(minBoundingBoxData, maxBoundingBoxData, pMeshInfo->numIndicesTotal/3);
-		AABB boundingBox = maxBoundingBoxData.back();
-		pMeshInfo->occluderScore = occluderScore;
-		pMeshInfo->boundingBox = boundingBox;
+		if(pMeshInfo->numIndices>0){
+			MeshTools::GenerateAABBData(indexedVertexData.data(), indexedVertexData.size(), indexData.data()+pMeshInfo->indexOffset, pMeshInfo->numIndices, maxLimit, &maxBoundingBoxData);
+			MeshTools::GenerateAABBData(indexedVertexData.data(), indexedVertexData.size(), indexData.data()+pMeshInfo->indexOffset, pMeshInfo->numIndices, minLimit, &minBoundingBoxData);
+			MeshTools::PushBackMeshAABBWireFrame(maxBoundingBoxData.back(), bbVertexData, bbIndexData);
+			float occluderScore = MeshTools::GetOccluderPotential(minBoundingBoxData, maxBoundingBoxData, pMeshInfo->numIndicesTotal/3);
+			AABB boundingBox = maxBoundingBoxData.back();
+			pMeshInfo->occluderScore = occluderScore;
+			pMeshInfo->boundingBox = boundingBox;
+		}
+		else{
+			pMeshInfo->boundingBox = MeshTools::GetAABB(indexedVertexData.data()+ pMeshInfo->vertexOffset,pMeshInfo->numVerticesTotal);
+			pMeshInfo->occluderScore = 0.0f;
+		}
 		itemList[idx] = pMeshInfo->meshId;
-		lengthScaleData[idx] = boundingBox.GetDiagonalLength();
-		occluderScoreData[idx] = (occluderScore)? occluderScore*boundingBox.GetAABBSurfaceArea() : 0.0f;
+		lengthScaleData[idx] = pMeshInfo->boundingBox.GetDiagonalLength();
+		occluderScoreData[idx] = pMeshInfo->occluderScore*pMeshInfo->boundingBox.GetAABBSurfaceArea();
 		triangleNumData[idx] = pMeshInfo->numIndicesTotal/3.0f;
 	}
 
@@ -474,21 +485,82 @@ void ViewerContext::CreatePipelines(){
 }
 void ViewerContext::WriteOccluderRankingToFile(const std::string &fileName){
 	std::vector<std::string_view> tokens;
-	StringTools::ParseString(filePath_, '\\', &tokens);
-	std::string filePath ="";
-	for(int i = 0; i<tokens.size()-1; ++i){
-		filePath.append(tokens[i]);
-		filePath.append("\\");
-	}
+	//StringTools::ParseString(filePath_, '\\', &tokens);
+	std::string dir = RESOURCES_PATH;
+	std::string filePath = dir;
+	//for(int i = 0; i<tokens.size()-1; ++i){
+	//	filePath.append(tokens[i]);
+	//	filePath.append("\\");
+	//}
 	filePath.append(fileName);
 	std::vector<char> meshIds;
 	for(int i = 0; i<pOccluderRankingData_->size(); ++i){
 		std::string_view meshId(occluderOffsetData_[pOccluderRankingData_->at(i).second].meshId);
-		meshIds.reserve(meshIds.size()+meshId.size()+1);
+		meshIds.reserve(meshIds.size()+meshId.size()+2);
 		for(int j = 0; j<meshId.size(); ++j){
 			meshIds.push_back(meshId[j]);
 		}
+		meshIds.push_back('\0');
 		meshIds.push_back('\n');
 	}
 	FileTools::WriteBufferToFile(filePath, meshIds);
+
+	std::string file("Test.pak");
+	FileTools::Pak pak(file,dir);
+	pak.OpenPak();
+	auto writeStream = pak.OpenItemWriteStream("emerald.mscn");
+	FileTools::MScene mscn;
+	mscn.Serialize(occluderOffsetData_, pOccluderRankingData_, writeStream);
+	pak.CloseItemWriteStream();
+	pak.ClosePak();
+}
+
+void ViewerContext::SerializeBuffers(){
+	std::string file("Test.pak");
+	std::string dir(RESOURCES_PATH);
+	FileTools::Pak pak(file,dir);
+	pak.OpenPak();
+	auto writeStream = pak.OpenItemWriteStream("mesh.mvtx");
+	FileTools::MVertex mvtx;
+	std::byte *byteArray = (std::byte *)indexedVertexData_.data();
+	size_t arraySizeInBytes = indexedVertexData_.size()*sizeof(VertexPosTexNorm);
+	std::vector<std::byte>vertexData(byteArray,byteArray+arraySizeInBytes);
+	VertexLayout layout = {sizeof(VertexPosTexNorm), std::vector<VertexAttributeDesc>(std::begin(VertexPosTexNorm::attributeData), std::end(VertexPosTexNorm::attributeData))};
+	mvtx.Serialize(vertexData, indexData_, layout, writeStream);
+	pak.CloseItemWriteStream();
+	pak.ClosePak();
+}
+
+void ViewerContext::DeserializeBuffers(){
+	std::string file("Test.pak");
+	std::string dir(RESOURCES_PATH);
+	FileTools::Pak pak(file,dir);
+	pak.OpenPak();
+	std::vector<FileTools::PakItemInfo> pakInfo = pak.ReturnPakInfo();
+	auto readStream = pak.OpenItemReadStream(0);
+	FileTools::MVertex mvtx;
+	std::vector<std::byte> vertexData;
+	std::vector<uint32_t> indexData;
+	VertexLayout layout;
+	mvtx.Deserialize(vertexData, indexData, layout, readStream);
+	pak.CloseItemReadStream();
+	pak.ClosePak();
+	if(VertexTypes::matches<VertexPosTexNorm>(layout)){
+		VertexPosTexNorm *data = (VertexPosTexNorm*)vertexData.data();
+		std::vector<VertexPosTexNorm> vertexTypedData(data, data+(vertexData.size()/layout.stride));
+	}
+}
+
+void ViewerContext::ReadSceneData(){
+	std::string file("Test.pak");
+	std::string dir(RESOURCES_PATH);
+	FileTools::Pak pak(file,dir);
+	pak.OpenPak();
+	std::vector<FileTools::PakItemInfo> pakInfo = pak.ReturnPakInfo();
+	auto readStream = pak.OpenItemReadStream(1);
+	FileTools::MScene mscn;
+	Scene scene = {};
+	mscn.Deserialize(scene, readStream);
+	pak.CloseItemReadStream();
+	pak.ClosePak();
 }

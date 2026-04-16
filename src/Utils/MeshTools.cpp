@@ -117,22 +117,19 @@ float MeshTools::GetOccluderPotential(const std::vector<AABB> &minBoundingBoxDat
 	}
 	meshSurfaceArea = meshBoundingBox.GetAABBSurfaceArea();
 	float minVolumeRatio = minInteriorVolume/meshVolume;
+	minVolumeRatio = (minVolumeRatio==0.0f) ? 1.0f : minVolumeRatio;
 	for(size_t i = 0; i<maxBoundingBoxData.size()-1; ++i){
 		maxInteriorVolume += maxBoundingBoxData.at(i).GetAABBVolume();
 	}
 	float maxVolumeRatio = maxInteriorVolume/meshVolume;
+	maxVolumeRatio = (maxVolumeRatio==0.0f) ? 1.0f : maxVolumeRatio;
 
 	float linearMinVolumeRatio = (minVolumeRatio<1.0f) ? 1.0f/minVolumeRatio : minVolumeRatio;
 	float linearMaxVolumeRatio = (maxVolumeRatio<1.0f) ? 1.0f/maxVolumeRatio : maxVolumeRatio;
 
 	float normalizedLinearVolumeRatio = (linearMaxVolumeRatio+linearMinVolumeRatio)/2.0f;
-
 	float normalizedSurfaceArea = meshSurfaceArea/std::pow(normalizedLinearVolumeRatio,2.5f);
-	
 	float occluderPotential = (normalizedSurfaceArea)/std::pow(((float)numTriangles/1000.0f),1.5f);
-	//DebugPrint("Min Volume ratio: %f\n", minVolumeRatio);
-	//DebugPrint("Max Volume ratio: %f\n", maxVolumeRatio);
-	//DebugPrint("Surface Area: %f\n", meshSurfaceArea);
 	return occluderPotential;
 
 }

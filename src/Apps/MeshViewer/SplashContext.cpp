@@ -2,6 +2,8 @@
 #include <Apps/MeshViewer/SplashContext.h>
 #include <imgui.h>
 #include <ShObjIdl.h>
+#include <Utils/FileTools/Pak.h>
+#include <Utils/FileTools/Mscn.h>
 
 
 SplashContext::SplashContext(){
@@ -37,6 +39,32 @@ void SplashContext::Update(const SplashUpdateParams &updateParams,double deltaTi
 		}
 		::CoUninitialize();
 	}
+	//if(ImGui::Button("Pop Pack Item")){
+	//	std::string file("Test.pak");
+	//	std::string dir(RESOURCES_PATH);
+	//	FileTools::Pak pak(file,dir);
+	//	pak.OpenPak();
+	//	std::vector<FileTools::PakItemInfo> pakInfo = pak.ReturnPakInfo();
+	//	pak.PopItem();
+	//	pak.ClosePak();
+	//	pak.OpenPak();
+	//	pakInfo = pak.ReturnPakInfo();
+	//	pak.ClosePak();
+
+	//}
+	//if(ImGui::Button("Read Scene")){
+	//	std::string file("Test.pak");
+	//	std::string dir(RESOURCES_PATH);
+	//	FileTools::Pak pak(file,dir);
+	//	pak.OpenPak();
+	//	std::vector<FileTools::PakItemInfo> pakInfo = pak.ReturnPakInfo();
+	//	auto readStream = pak.OpenItemReadStream(1);
+	//	FileTools::MScene mscn;
+	//	Scene scene = {};
+	//	mscn.Deserialize(scene, readStream);
+	//	pak.CloseItemReadStream();
+	//	pak.ClosePak();
+	//}
 	if(stateVariables_.fileName!=""){
 		ImGui::Text(stateVariables_.fileName.data());
 		stateParams.fileSelected= ImGui::Button("Load File");

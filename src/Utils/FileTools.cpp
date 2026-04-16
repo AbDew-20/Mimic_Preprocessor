@@ -116,8 +116,8 @@ void FileTools::LoadFileToBuffer(const std::string &filePath, std::vector<char> 
 
 void FileTools::WriteBufferToFile(const std::string &filePath, const std::vector<char> &buffer){
 	std::ofstream file(filePath.data(), std::ofstream::trunc);
-	assert(file.is_open()&&"Erroe creating and opening file");
-	file<<buffer.data();
+	assert(file.is_open()&&"Error creating and opening file");
+	file.write(buffer.data(), buffer.size());
 	file.close();
 }
 
@@ -335,7 +335,7 @@ void FileTools::Obj::ParseObjFile(
 					meshName.append(groupName);
 					meshName.append(mtlName);
 					bool alphaTested = matierialInfoData.at(materialIdMap.at(mtlName)).alphaTested;
-					meshOffsetData.push_back({objectName,groupName, mtlName, indexBuffer.size(), interleavedBuffer.size(), indexedVertexBuffer.size(), 0, alphaTested});
+					meshOffsetData.push_back({objectName,groupName, mtlName, indexBuffer.size(), indexedVertexBuffer.size(), (uint32_t)interleavedBuffer.size(), 0UL, alphaTested});
 					Obj::GenerateIndexBuffer(interleavedBuffer, indexedVertexBuffer, indexBuffer);
 					meshOffsetData.back().numVertices = indexedVertexBuffer.size()-meshOffsetData.back().vertexOffset;
 					interleavedBuffer.clear();
@@ -358,7 +358,7 @@ void FileTools::Obj::ParseObjFile(
 					meshName.append(groupName);
 					meshName.append(mtlName);
 					bool alphaTested = matierialInfoData.at(materialIdMap.at(mtlName)).alphaTested;
-					meshOffsetData.push_back({objectName,groupName, mtlName, indexBuffer.size(), interleavedBuffer.size(), indexedVertexBuffer.size(), 0, alphaTested});
+					meshOffsetData.push_back({objectName,groupName, mtlName, indexBuffer.size(), indexedVertexBuffer.size(), (uint32_t)interleavedBuffer.size(), 0, alphaTested});
 					Obj::GenerateIndexBuffer(interleavedBuffer, indexedVertexBuffer, indexBuffer);
 					meshOffsetData.back().numVertices = indexedVertexBuffer.size()-meshOffsetData.back().vertexOffset;
 					interleavedBuffer.clear();
@@ -381,13 +381,13 @@ void FileTools::Obj::ParseObjFile(
 					meshName.append(groupName);
 					bool alphaTested = matierialInfoData.at(materialIdMap.at(mtlName)).alphaTested;
 					if(alphaTested && meshName!=""){
-						alphaTestedMeshData.push_back({objectName, groupName, mtlName, alphaTestedIndexData.size(), interleavedBuffer.size(), alphaTestedVertexData.size(), 0, alphaTested});
+						alphaTestedMeshData.push_back({objectName, groupName, mtlName, alphaTestedIndexData.size(), alphaTestedVertexData.size(), (uint32_t)interleavedBuffer.size(), 0UL, alphaTested});
 						Obj::GenerateIndexBuffer(interleavedBuffer, alphaTestedVertexData, alphaTestedIndexData);
 						alphaTestedMeshData.back().numVertices = alphaTestedIndexData.size()-alphaTestedMeshData.back().vertexOffset;
 						interleavedBuffer.clear();
 					}
 					else{
-						meshOffsetData.push_back(SubMesh{objectName,groupName, mtlName, indexBuffer.size(), interleavedBuffer.size(), indexedVertexBuffer.size(), 0, alphaTested});
+						meshOffsetData.push_back(SubMesh{objectName,groupName, mtlName, indexBuffer.size(), indexedVertexBuffer.size(), (uint32_t)interleavedBuffer.size(), 0UL, alphaTested});
 						Obj::GenerateIndexBuffer(interleavedBuffer, indexedVertexBuffer, indexBuffer);
 						meshOffsetData.back().numVertices = indexedVertexBuffer.size()-meshOffsetData.back().vertexOffset;
 						interleavedBuffer.clear();
@@ -406,7 +406,7 @@ void FileTools::Obj::ParseObjFile(
 		}
 	}
 	bool alphaTested = matierialInfoData.at(materialIdMap.at(mtlName)).alphaTested;
-	meshOffsetData.push_back({objectName,groupName, mtlName, indexBuffer.size(), interleavedBuffer.size(), indexedVertexBuffer.size(), 0, alphaTested});
+	meshOffsetData.push_back({objectName,groupName, mtlName, indexBuffer.size(), indexedVertexBuffer.size(), (uint32_t)interleavedBuffer.size(), 0UL, alphaTested});
 	Obj::GenerateIndexBuffer(interleavedBuffer, indexedVertexBuffer, indexBuffer);
 	meshOffsetData.back().numVertices = indexedVertexBuffer.size()-meshOffsetData.back().vertexOffset;
 }
@@ -502,7 +502,7 @@ void FileTools::Obj::PushBackData(
 	}
 	for(uint32_t i = 0; i<alphaTestedMeshData.size(); ++i){
 		SubMesh temp = alphaTestedMeshData[i];
-		meshOffsetData.push_back({temp.objName, temp.groupName, temp.material, temp.indexOffset+indexOffset, temp.numIndices, temp.vertexOffset+ vertexOffset, temp.numVertices, true});
+		meshOffsetData.push_back({temp.objName, temp.groupName, temp.material, temp.indexOffset+indexOffset, temp.vertexOffset+ vertexOffset, temp.numIndices, temp.numVertices, true});
 	}
 
 }
