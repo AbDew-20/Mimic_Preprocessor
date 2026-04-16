@@ -5,6 +5,7 @@
 #include <Core/Application.h>
 #include <Utils/MeshTools.h>
 #include <Utils/StringTools.h>
+#include <Utils/FileTools.h>
 #include <Utils/FileTools/Pak.h>
 #include <Utils/FileTools/Mvtx.h>
 #include <imgui.h>
@@ -316,10 +317,10 @@ void ViewerContext::ProcessObjFile(
 	for(uint32_t i = 0; i<subMeshData_.size(); ++i){
 		state.percent = float(i)/subMeshData_.size();
 		temp = subMeshData_[i];
-		uint64_t opaqueIndices = temp.alphaTested? 0:temp.numIndices;
-		uint64_t opaqueVertices = temp.alphaTested? 0:temp.numVertices;
+		uint32_t opaqueIndices = temp.alphaTested? 0:temp.numIndices;
+		uint32_t opaqueVertices = temp.alphaTested? 0:temp.numVertices;
 		if(temp.objName!=currObject){
-			occluderOffsetData_.push_back({temp.objName, temp.indexOffset, opaqueIndices, temp.numIndices,  temp.vertexOffset, opaqueVertices,temp.numVertices, 0.0f, AABB()});
+			occluderOffsetData_.push_back({temp.objName, temp.indexOffset, opaqueIndices, (uint32_t)temp.numIndices,  temp.vertexOffset, opaqueVertices,(uint32_t)temp.numVertices, 0.0f, AABB()});
 			currObject = temp.objName;
 			continue;
 		}

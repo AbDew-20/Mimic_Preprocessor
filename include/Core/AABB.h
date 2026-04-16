@@ -1,4 +1,6 @@
 #pragma once
+#include <vector>
+#include <Core/VertexTypes.h>
 #include <DirectXMath.h>
 
 

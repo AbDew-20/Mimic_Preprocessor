@@ -6,27 +6,9 @@
 #include <Core/VertexTypes.h>
 #include <Core/AABB.h>
 #include <unordered_map>
+#include <Core/MeshTypes.h>
 
 
-struct MeshInfo{
-	std::string meshId;
-	uint64_t indexOffset;
-	uint64_t numIndices;
-	uint64_t vertexOffset;
-	uint64_t numVertices;
-	float occluderScore;
-	AABB boundingBox;
-};
-struct SubMesh{
-	std::string objName;
-	std::string groupName;
-	std::string material;
-	uint64_t indexOffset;
-	uint64_t numIndices;
-	uint64_t vertexOffset;
-	uint64_t numVertices;
-	bool alphaTested;
-};
 
 struct MaterialInfo{
 	bool alphaTested;

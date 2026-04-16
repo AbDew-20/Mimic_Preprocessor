@@ -6,8 +6,7 @@
 #include <Core/PipelineManager.h>
 #include <DirectXMath.h>
 #include <Core/VertexTypes.h>
-#include <Core/AABB.h>
-#include <Utils/FileTools.h>
+#include <Core/MeshTypes.h>
 
 struct ViewerStateParams{
 	bool asyncStarted;
@@ -18,17 +17,6 @@ struct ViewerUpdateParams{
 	int clientWidth;
 	int clientHeight;
 	bool loading;
-};
-struct OccluderMesh{
-	std::string meshId;
-	uint64_t indexOffset;
-	uint64_t numIndices;
-	uint64_t numIndicesTotal;
-	uint64_t vertexOffset;
-	uint64_t numVertices;
-	uint64_t numVerticesTotal;
-	float occluderScore;
-	AABB boundingBox;
 };
 struct MappedInput;
 class Application;
