@@ -3,7 +3,7 @@
 #include <Core/IO/IReader.h>
 #include <Core/IO/IWriter.h>
 #include <Core/VertexTypes.h>
-#include <cstddef>
+#include <cstdint>
 
 namespace FileTools{
 

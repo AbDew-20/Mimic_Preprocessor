@@ -8,6 +8,7 @@
 #include <Utils/FileTools.h>
 #include <Utils/FileTools/Pak.h>
 #include <Utils/FileTools/Mvtx.h>
+#include <Utils/FileTools/Mscn.h>
 #include <imgui.h>
 
 
@@ -320,17 +321,17 @@ void ViewerContext::ProcessObjFile(
 		uint32_t opaqueIndices = temp.alphaTested? 0:temp.numIndices;
 		uint32_t opaqueVertices = temp.alphaTested? 0:temp.numVertices;
 		if(temp.objName!=currObject){
-			occluderOffsetData_.push_back({temp.objName, temp.indexOffset, opaqueIndices, (uint32_t)temp.numIndices,  temp.vertexOffset, opaqueVertices,(uint32_t)temp.numVertices, 0.0f, AABB()});
+			occluderOffsetData_.push_back({temp.objName, temp.indexOffset, temp.vertexOffset, opaqueIndices, (uint32_t)temp.numIndices, opaqueVertices,(uint32_t)temp.numVertices, AABB(), 0.0f});
 			currObject = temp.objName;
 			continue;
 		}
 		if(temp.groupName!=currGroup&&temp.objName==""){
-			occluderOffsetData_.push_back({temp.groupName, temp.indexOffset, opaqueIndices, temp.numIndices,  temp.vertexOffset, opaqueVertices,temp.numVertices, 0.0f, AABB()});
+			occluderOffsetData_.push_back({temp.groupName, temp.indexOffset,  temp.vertexOffset, opaqueIndices, temp.numIndices, opaqueVertices,temp.numVertices, AABB(), 0.0f});
 			currGroup = temp.groupName;
 			continue;
 		}
 		if(temp.material!=currMaterial&&temp.objName==""&&temp.groupName==""){
-			occluderOffsetData_.push_back({temp.material, temp.indexOffset, opaqueIndices, temp.numIndices,  temp.vertexOffset, opaqueVertices,temp.numVertices, 0.0f, AABB()});
+			occluderOffsetData_.push_back({temp.material, temp.indexOffset,  temp.vertexOffset, opaqueIndices, temp.numIndices, opaqueVertices,temp.numVertices, AABB(), 0.0f});
 			currMaterial = temp.material;
 			continue;
 		}
@@ -484,23 +485,34 @@ void ViewerContext::CreatePipelines(){
 }
 void ViewerContext::WriteOccluderRankingToFile(const std::string &fileName){
 	std::vector<std::string_view> tokens;
-	StringTools::ParseString(filePath_, '\\', &tokens);
-	std::string filePath ="";
-	for(int i = 0; i<tokens.size()-1; ++i){
-		filePath.append(tokens[i]);
-		filePath.append("\\");
-	}
+	//StringTools::ParseString(filePath_, '\\', &tokens);
+	std::string dir = RESOURCES_PATH;
+	std::string filePath = dir;
+	//for(int i = 0; i<tokens.size()-1; ++i){
+	//	filePath.append(tokens[i]);
+	//	filePath.append("\\");
+	//}
 	filePath.append(fileName);
 	std::vector<char> meshIds;
 	for(int i = 0; i<pOccluderRankingData_->size(); ++i){
 		std::string_view meshId(occluderOffsetData_[pOccluderRankingData_->at(i).second].meshId);
-		meshIds.reserve(meshIds.size()+meshId.size()+1);
+		meshIds.reserve(meshIds.size()+meshId.size()+2);
 		for(int j = 0; j<meshId.size(); ++j){
 			meshIds.push_back(meshId[j]);
 		}
+		meshIds.push_back('\0');
 		meshIds.push_back('\n');
 	}
 	FileTools::WriteBufferToFile(filePath, meshIds);
+
+	std::string file("Test.pak");
+	FileTools::Pak pak(file,dir);
+	pak.OpenPak();
+	auto writeStream = pak.OpenItemWriteStream("emerald.mscn");
+	FileTools::MScene mscn;
+	mscn.Serialize(occluderOffsetData_, pOccluderRankingData_, writeStream);
+	pak.CloseItemWriteStream();
+	pak.ClosePak();
 }
 
 void ViewerContext::SerializeBuffers(){
@@ -537,4 +549,18 @@ void ViewerContext::DeserializeBuffers(){
 		VertexPosTexNorm *data = (VertexPosTexNorm*)vertexData.data();
 		std::vector<VertexPosTexNorm> vertexTypedData(data, data+(vertexData.size()/layout.stride));
 	}
+}
+
+void ViewerContext::ReadSceneData(){
+	std::string file("Test.pak");
+	std::string dir(RESOURCES_PATH);
+	FileTools::Pak pak(file,dir);
+	pak.OpenPak();
+	std::vector<FileTools::PakItemInfo> pakInfo = pak.ReturnPakInfo();
+	auto readStream = pak.OpenItemReadStream(1);
+	FileTools::MScene mscn;
+	Scene scene = {};
+	mscn.Deserialize(scene, readStream);
+	pak.CloseItemReadStream();
+	pak.ClosePak();
 }

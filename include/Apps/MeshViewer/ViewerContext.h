@@ -54,6 +54,7 @@ private:
 	void WriteOccluderRankingToFile(const std::string &fileName);
 	void SerializeBuffers();
 	void DeserializeBuffers();
+	void ReadSceneData();
 
 	inline constexpr float GetCameraSpeed(){ return 1.0f; }
 	std::string filePath_;
