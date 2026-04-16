@@ -50,6 +50,9 @@ void FileTools::Pak::ClosePak(){
 
 	overlap.Offset = 4;
 	ThrowIfFailed(::WriteFileEx(fileMap_.hFile, &header_, (DWORD) 8, &overlap, NULL));
+	LARGE_INTEGER offset = {header_.fileTableOffset + header_.fileTableSize, 0L};
+	::SetFilePointerEx(fileMap_.hFile, offset, NULL, 0U);
+	::SetEndOfFile(fileMap_.hFile);
 	::CloseHandle(fileMap_.hMap);
 	::CloseHandle(fileMap_.hFile);
 }
@@ -74,6 +77,15 @@ void FileTools::Pak::GetItem(uint32_t itemIndex, std::vector<char> &buffer){
 	OVERLAPPED overlap = {0};
 	overlap.Offset = offset;
 	ThrowIfFailed(::ReadFileEx(fileMap_.hFile, buffer.data(), size, &overlap, NULL));
+}
+
+void FileTools::Pak::PopItem(){
+	if(itemInfoData_.size()==0){
+		return;
+	}
+	header_.fileTableOffset -= itemInfoData_.back().itemSize;
+	header_.fileTableSize -= 64UL;
+	itemInfoData_.pop_back();
 }
 
 

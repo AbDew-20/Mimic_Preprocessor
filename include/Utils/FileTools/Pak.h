@@ -34,6 +34,7 @@ namespace FileTools{
 		Pak(const std::string pakFile, const std::string directory);
 		std::vector<PakItemInfo> &ReturnPakInfo(){ return itemInfoData_; }
 		void GetItem(uint32_t itemIndex, std::vector<char> &buffer);
+		void PopItem();
 		ItemView OpenItemView(uint32_t itemIndex);
 		void CloseItemView();
 		[[nodiscard]] PakItemReader OpenItemReadStream(uint32_t itemIndex);
